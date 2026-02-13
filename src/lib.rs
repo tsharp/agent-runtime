@@ -7,6 +7,7 @@ pub mod runtime;
 pub mod step;
 pub mod step_impls;
 pub mod tool;
+pub mod tools;
 pub mod types;
 pub mod workflow;
 
@@ -19,5 +20,6 @@ pub use runtime::Runtime;
 pub use step::{ExecutionContext, Step, StepError, StepInput, StepOutput, StepResult, StepType};
 pub use step_impls::{AgentStep, ConditionalStep, SubWorkflowStep, TransformStep};
 pub use tool::{NativeTool, Tool, ToolRegistry};
+pub use tools::{McpClient, McpTool, McpToolInfo};
 pub use types::*;
 pub use workflow::{Workflow, WorkflowBuilder, WorkflowState};
