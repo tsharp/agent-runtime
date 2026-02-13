@@ -2,10 +2,12 @@
 pub mod agent;
 pub mod event;
 pub mod llm;
+pub mod logging;
 pub mod runtime;
 pub mod step;
 pub mod step_impls;
 pub mod tool;
+pub mod tools;
 pub mod types;
 pub mod workflow;
 
@@ -13,9 +15,11 @@ pub mod workflow;
 pub use agent::{Agent, AgentConfig};
 pub use event::{Event, EventStream, EventType};
 pub use llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};
+pub use logging::FileLogger;
 pub use runtime::Runtime;
 pub use step::{ExecutionContext, Step, StepError, StepInput, StepOutput, StepResult, StepType};
 pub use step_impls::{AgentStep, ConditionalStep, SubWorkflowStep, TransformStep};
-pub use tool::Tool;
+pub use tool::{NativeTool, Tool, ToolRegistry};
+pub use tools::{McpClient, McpTool, McpToolInfo};
 pub use types::*;
 pub use workflow::{Workflow, WorkflowBuilder, WorkflowState};

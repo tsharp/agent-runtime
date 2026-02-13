@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 
 #[cfg(test)]
 #[path = "types_test.rs"]
@@ -11,6 +12,7 @@ pub enum Role {
     System,
     User,
     Assistant,
+    Tool,
 }
 
 /// A single message in a chat conversation
@@ -18,6 +20,12 @@ pub enum Role {
 pub struct ChatMessage {
     pub role: Role,
     pub content: String,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
 }
 
 impl ChatMessage {
@@ -25,6 +33,8 @@ impl ChatMessage {
         Self {
             role: Role::System,
             content: content.into(),
+            tool_calls: None,
+            tool_call_id: None,
         }
     }
 
@@ -32,6 +42,8 @@ impl ChatMessage {
         Self {
             role: Role::User,
             content: content.into(),
+            tool_calls: None,
+            tool_call_id: None,
         }
     }
 
@@ -39,6 +51,26 @@ impl ChatMessage {
         Self {
             role: Role::Assistant,
             content: content.into(),
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+    
+    pub fn assistant_with_tool_calls(content: impl Into<String>, tool_calls: Vec<ToolCall>) -> Self {
+        Self {
+            role: Role::Assistant,
+            content: content.into(),
+            tool_calls: Some(tool_calls),
+            tool_call_id: None,
+        }
+    }
+    
+    pub fn tool_result(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
+        Self {
+            role: Role::Tool,
+            content: content.into(),
+            tool_calls: None,
+            tool_call_id: Some(tool_call_id.into()),
         }
     }
 }
@@ -56,6 +88,9 @@ pub struct ChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<JsonValue>>,
 }
 
 impl ChatRequest {
@@ -65,6 +100,7 @@ impl ChatRequest {
             temperature: None,
             max_tokens: None,
             top_p: None,
+            tools: None,
         }
     }
 
@@ -82,6 +118,11 @@ impl ChatRequest {
         self.top_p = Some(top_p);
         self
     }
+    
+    pub fn with_tools(mut self, tools: Vec<JsonValue>) -> Self {
+        self.tools = Some(tools);
+        self
+    }
 }
 
 /// Response from chat completion
@@ -95,6 +136,24 @@ pub struct ChatResponse {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
+}
+
+/// A tool call request from the LLM
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolCall {
+    pub id: String,
+    pub r#type: String, // Usually "function"
+    pub function: FunctionCall,
+}
+
+/// Function call details
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FunctionCall {
+    pub name: String,
+    pub arguments: String, // JSON string
 }
 
 /// Token usage statistics

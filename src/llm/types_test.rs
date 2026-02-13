@@ -50,6 +50,7 @@ mod tests {
                 total_tokens: 30,
             }),
             finish_reason: Some("stop".to_string()),
+            tool_calls: None,
         };
 
         assert_eq!(response.content, "Test response");

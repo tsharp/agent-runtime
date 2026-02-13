@@ -1,5 +1,5 @@
 use agent_runtime::{
-    tool::CalculatorTool, AgentConfig, AgentStep, Runtime, SubWorkflowStep, TransformStep, Workflow,
+    tool::{CalculatorTool, ToolRegistry}, AgentConfig, AgentStep, Runtime, SubWorkflowStep, TransformStep, Workflow,
 };
 use std::sync::Arc;
 
@@ -43,9 +43,12 @@ async fn main() {
             })
         });
 
+        let mut registry = ToolRegistry::new();
+        registry.register(CalculatorTool);
+
         let agent = AgentConfig::builder("summarizer")
             .system_prompt("You summarize calculation results.")
-            .tool(Arc::new(CalculatorTool))
+            .tools(Arc::new(registry))
             .build();
 
         Workflow::builder()

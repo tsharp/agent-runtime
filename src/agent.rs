@@ -1,9 +1,10 @@
 use crate::event::{EventStream, EventType};
+use crate::llm::types::ToolCall;
 use crate::llm::{ChatClient, ChatMessage, ChatRequest};
-use crate::tool::Tool;
+use crate::tool::ToolRegistry;
 use crate::types::{AgentError, AgentInput, AgentOutput, AgentOutputMetadata, AgentResult};
-use futures::StreamExt;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[cfg(test)]
@@ -17,7 +18,9 @@ pub struct AgentConfig {
     pub system_prompt: String,
 
     #[serde(skip)]
-    pub tools: Vec<Arc<dyn Tool>>,
+    pub tools: Option<Arc<ToolRegistry>>,
+    
+    pub max_tool_iterations: usize,
 }
 
 impl std::fmt::Debug for AgentConfig {
@@ -25,7 +28,8 @@ impl std::fmt::Debug for AgentConfig {
         f.debug_struct("AgentConfig")
             .field("name", &self.name)
             .field("system_prompt", &self.system_prompt)
-            .field("tools", &format!("{} tools", self.tools.len()))
+            .field("tools", &self.tools.as_ref().map(|t| format!("{} tools", t.len())))
+            .field("max_tool_iterations", &self.max_tool_iterations)
             .finish()
     }
 }
@@ -35,7 +39,8 @@ impl AgentConfig {
         AgentConfigBuilder {
             name: name.into(),
             system_prompt: String::new(),
-            tools: Vec::new(),
+            tools: None,
+            max_tool_iterations: 10,
         }
     }
 }
@@ -44,7 +49,8 @@ impl AgentConfig {
 pub struct AgentConfigBuilder {
     name: String,
     system_prompt: String,
-    tools: Vec<Arc<dyn Tool>>,
+    tools: Option<Arc<ToolRegistry>>,
+    max_tool_iterations: usize,
 }
 
 impl AgentConfigBuilder {
@@ -53,13 +59,13 @@ impl AgentConfigBuilder {
         self
     }
 
-    pub fn tool(mut self, tool: Arc<dyn Tool>) -> Self {
-        self.tools.push(tool);
+    pub fn tools(mut self, tools: Arc<ToolRegistry>) -> Self {
+        self.tools = Some(tools);
         self
     }
-
-    pub fn tools(mut self, tools: Vec<Arc<dyn Tool>>) -> Self {
-        self.tools = tools;
+    
+    pub fn max_tool_iterations(mut self, max: usize) -> Self {
+        self.max_tool_iterations = max;
         self
     }
 
@@ -68,6 +74,7 @@ impl AgentConfigBuilder {
             name: self.name,
             system_prompt: self.system_prompt,
             tools: self.tools,
+            max_tool_iterations: self.max_tool_iterations,
         }
     }
 }
@@ -141,166 +148,206 @@ impl Agent {
             let mut messages = vec![ChatMessage::system(&self.config.system_prompt)];
             messages.push(ChatMessage::user(&user_message));
 
-            let request = ChatRequest::new(messages.clone())
+            let mut request = ChatRequest::new(messages.clone())
                 .with_temperature(0.7)
                 .with_max_tokens(8192);
+            
+            // Get tool schemas if available
+            let tool_schemas = self.config.tools.as_ref()
+                .map(|registry| registry.list_tools())
+                .filter(|tools| !tools.is_empty());
+            
+            // Tool calling loop
+            let mut iteration = 0;
+            let mut total_tool_calls = 0;
+            
+            loop {
+                iteration += 1;
+                
+                // Check iteration limit
+                if iteration > self.config.max_tool_iterations {
+                    return Err(AgentError::ExecutionError(format!(
+                        "Maximum tool iterations ({}) exceeded",
+                        self.config.max_tool_iterations
+                    )));
+                }
+                
+                // Add tools to request if available
+                if let Some(ref schemas) = tool_schemas {
+                    request = request.with_tools(schemas.clone());
+                }
 
-            // Emit LLM request started event
-            if let Some(stream) = event_stream {
-                stream.append(
-                    EventType::AgentLlmRequestStarted,
-                    input
-                        .metadata
-                        .previous_agent
-                        .clone()
-                        .unwrap_or_else(|| "workflow".to_string()),
-                    serde_json::json!({
-                        "agent": self.config.name,
-                        "provider": client.provider(),
-                    }),
-                );
-            }
+                // Emit LLM request started event
+                if let Some(stream) = event_stream {
+                    stream.append(
+                        EventType::AgentLlmRequestStarted,
+                        input
+                            .metadata
+                            .previous_agent
+                            .clone()
+                            .unwrap_or_else(|| "workflow".to_string()),
+                        serde_json::json!({
+                            "agent": self.config.name,
+                            "provider": client.provider(),
+                            "iteration": iteration,
+                        }),
+                    );
+                }
 
-            // Call LLM with streaming
-            match client.chat_stream(request).await {
-                Ok(mut text_stream) => {
-                    let mut full_response = String::new();
-
-                    // Stream chunks and emit events
-                    while let Some(chunk_result) = text_stream.next().await {
-                        match chunk_result {
-                            Ok(chunk) => {
-                                if !chunk.is_empty() {
-                                    full_response.push_str(&chunk);
-
-                                    // Emit chunk event
-                                    if let Some(stream) = event_stream {
-                                        stream.append(
-                                            EventType::AgentLlmStreamChunk,
-                                            input
-                                                .metadata
-                                                .previous_agent
-                                                .clone()
-                                                .unwrap_or_else(|| "workflow".to_string()),
-                                            serde_json::json!({
-                                                "agent": self.config.name,
-                                                "chunk": chunk,
-                                            }),
-                                        );
-                                    }
-                                }
+                // Call LLM with streaming + full response (for tool calls)
+                let event_stream_for_streaming = event_stream.cloned();
+                let agent_name = self.config.name.clone();
+                let previous_agent = input
+                    .metadata
+                    .previous_agent
+                    .clone()
+                    .unwrap_or_else(|| "workflow".to_string());
+                
+                let chunk_callback = Box::new(move |chunk: String| {
+                    // Emit chunk event for real-time streaming
+                    if let Some(stream) = &event_stream_for_streaming {
+                        stream.append(
+                            EventType::AgentLlmStreamChunk,
+                            previous_agent.clone(),
+                            serde_json::json!({
+                                "agent": &agent_name,
+                                "chunk": chunk,
+                            }),
+                        );
+                    }
+                });
+                
+                
+                match client.chat_stream_complete(request.clone(), chunk_callback).await {
+                    Ok(response) => {
+                        
+                        // Emit LLM request completed event
+                        if let Some(stream) = event_stream {
+                            stream.append(
+                                EventType::AgentLlmRequestCompleted,
+                                input
+                                    .metadata
+                                    .previous_agent
+                                    .clone()
+                                    .unwrap_or_else(|| "workflow".to_string()),
+                                serde_json::json!({
+                                    "agent": self.config.name,
+                                }),
+                            );
+                        }
+                        
+                        // Check if we have tool calls (and they're not empty)
+                        if let Some(tool_calls) = response.tool_calls.clone() {
+                            
+                            if tool_calls.is_empty() {
+                                // Empty tool calls array - treat as final response
+                            } else {
+                                
+                                total_tool_calls += tool_calls.len();
+                                
+                                // Add assistant message with tool calls to conversation
+                                let assistant_msg = ChatMessage::assistant_with_tool_calls(
+                                    response.content.clone(),
+                                    tool_calls.clone()
+                                );
+                                request.messages.push(assistant_msg);
+                                
+                                // Execute each tool call
+                                for tool_call in tool_calls {
+                                    let tool_result = self.execute_tool_call(
+                                        &tool_call,
+                                        &input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                                        event_stream
+                                    ).await;
+                                
+                                // Add tool result to conversation
+                                let tool_msg = ChatMessage::tool_result(
+                                    &tool_call.id,
+                                    &tool_result
+                                );
+                                request.messages.push(tool_msg);
                             }
-                            Err(e) => {
-                                // Emit LLM request failed event
-                                if let Some(stream) = event_stream {
-                                    stream.append(
-                                        EventType::AgentLlmRequestFailed,
-                                        input
-                                            .metadata
-                                            .previous_agent
-                                            .clone()
-                                            .unwrap_or_else(|| "workflow".to_string()),
-                                        serde_json::json!({
-                                            "agent": self.config.name,
-                                            "error": e.to_string(),
-                                        }),
-                                    );
-                                }
-                                return Err(AgentError::ExecutionError(format!(
-                                    "LLM streaming failed: {}",
-                                    e
-                                )));
+                            
+                            // Continue loop to get next response
+                            continue;
                             }
                         }
+                        
+                        // No tool calls (or empty array), we have the final response
+                        let response_text = response.content.trim();
+                        let token_count = response.usage
+                            .map(|u| u.total_tokens)
+                            .unwrap_or_else(|| (response_text.len() as f32 / 4.0).ceil() as u32);
+
+                        let output_data = serde_json::json!({
+                            "response": response_text,
+                            "content_type": "text/plain",
+                            "token_count": token_count,
+                        });
+
+                        // Emit agent completed event
+                        if let Some(stream) = event_stream {
+                            stream.append(
+                                EventType::AgentCompleted,
+                                input
+                                    .metadata
+                                    .previous_agent
+                                    .clone()
+                                    .unwrap_or_else(|| "workflow".to_string()),
+                                serde_json::json!({
+                                    "agent": self.config.name,
+                                    "execution_time_ms": start.elapsed().as_millis() as u64,
+                                }),
+                            );
+                        }
+
+                        return Ok(AgentOutput {
+                            data: output_data,
+                            metadata: AgentOutputMetadata {
+                                agent_name: self.config.name.clone(),
+                                execution_time_ms: start.elapsed().as_millis() as u64,
+                                tool_calls_count: total_tool_calls,
+                            },
+                        });
                     }
+                    Err(e) => {
+                        // Emit LLM request failed event
+                        if let Some(stream) = event_stream {
+                            stream.append(
+                                EventType::AgentLlmRequestFailed,
+                                input
+                                    .metadata
+                                    .previous_agent
+                                    .clone()
+                                    .unwrap_or_else(|| "workflow".to_string()),
+                                serde_json::json!({
+                                    "agent": self.config.name,
+                                    "error": e.to_string(),
+                                }),
+                            );
+                        }
 
-                    // Emit LLM request completed event
-                    if let Some(stream) = event_stream {
-                        stream.append(
-                            EventType::AgentLlmRequestCompleted,
-                            input
-                                .metadata
-                                .previous_agent
-                                .clone()
-                                .unwrap_or_else(|| "workflow".to_string()),
-                            serde_json::json!({
-                                "agent": self.config.name,
-                            }),
-                        );
+                        // Emit agent failed event
+                        if let Some(stream) = event_stream {
+                            stream.append(
+                                EventType::AgentFailed,
+                                input
+                                    .metadata
+                                    .previous_agent
+                                    .clone()
+                                    .unwrap_or_else(|| "workflow".to_string()),
+                                serde_json::json!({
+                                    "agent": self.config.name,
+                                    "error": e.to_string(),
+                                }),
+                            );
+                        }
+
+                        return Err(AgentError::ExecutionError(format!(
+                            "LLM call failed: {}",
+                            e
+                        )));
                     }
-
-                    // Estimate token count for streaming responses
-                    let response_text = full_response.trim();
-                    let estimated_tokens = (response_text.len() as f32 / 4.0).ceil() as u32;
-
-                    let output_data = serde_json::json!({
-                        "response": response_text,
-                        "content_type": "text/plain",
-                        "token_count": estimated_tokens,
-                    });
-
-                    // Emit agent completed event
-                    if let Some(stream) = event_stream {
-                        stream.append(
-                            EventType::AgentCompleted,
-                            input
-                                .metadata
-                                .previous_agent
-                                .clone()
-                                .unwrap_or_else(|| "workflow".to_string()),
-                            serde_json::json!({
-                                "agent": self.config.name,
-                                "execution_time_ms": start.elapsed().as_millis() as u64,
-                            }),
-                        );
-                    }
-
-                    Ok(AgentOutput {
-                        data: output_data,
-                        metadata: AgentOutputMetadata {
-                            agent_name: self.config.name.clone(),
-                            execution_time_ms: start.elapsed().as_millis() as u64,
-                            tool_calls_count: 0,
-                        },
-                    })
-                }
-                Err(e) => {
-                    // Emit LLM request failed event
-                    if let Some(stream) = event_stream {
-                        stream.append(
-                            EventType::AgentLlmRequestFailed,
-                            input
-                                .metadata
-                                .previous_agent
-                                .clone()
-                                .unwrap_or_else(|| "workflow".to_string()),
-                            serde_json::json!({
-                                "agent": self.config.name,
-                                "error": e.to_string(),
-                            }),
-                        );
-                    }
-
-                    // Emit agent failed event
-                    if let Some(stream) = event_stream {
-                        stream.append(
-                            EventType::AgentFailed,
-                            input
-                                .metadata
-                                .previous_agent
-                                .clone()
-                                .unwrap_or_else(|| "workflow".to_string()),
-                            serde_json::json!({
-                                "agent": self.config.name,
-                                "error": e.to_string(),
-                            }),
-                        );
-                    }
-
-                    Err(AgentError::ExecutionError(format!(
-                        "LLM call failed: {}",
-                        e
-                    )))
                 }
             }
         } else {
@@ -336,6 +383,119 @@ impl Agent {
                     tool_calls_count: 0,
                 },
             })
+        }
+    }
+    
+    /// Execute a single tool call
+    async fn execute_tool_call(
+        &self,
+        tool_call: &ToolCall,
+        previous_agent: &str,
+        event_stream: Option<&EventStream>,
+    ) -> String {
+        let tool_name = &tool_call.function.name;
+        
+        // Emit tool call started event
+        if let Some(stream) = event_stream {
+            stream.append(
+                EventType::ToolCallStarted,
+                previous_agent.to_string(),
+                serde_json::json!({
+                    "agent": self.config.name,
+                    "tool": tool_name,
+                    "tool_call_id": tool_call.id,
+                    "arguments": tool_call.function.arguments,
+                }),
+            );
+        }
+        
+        // Get the tool registry
+        let registry = match &self.config.tools {
+            Some(reg) => reg,
+            None => {
+                let error_msg = "No tool registry configured".to_string();
+                if let Some(stream) = event_stream {
+                    stream.append(
+                        EventType::ToolCallFailed,
+                        previous_agent.to_string(),
+                        serde_json::json!({
+                            "agent": self.config.name,
+                            "tool": tool_name,
+                            "tool_call_id": tool_call.id,
+                            "arguments": tool_call.function.arguments,
+                            "error": error_msg,
+                            "duration_ms": 0,
+                        }),
+                    );
+                }
+                return format!("Error: {}", error_msg);
+            }
+        };
+        
+        // Parse arguments from JSON string
+        let params: HashMap<String, serde_json::Value> = match serde_json::from_str(&tool_call.function.arguments) {
+            Ok(p) => p,
+            Err(e) => {
+                let error_msg = format!("Failed to parse tool arguments: {}", e);
+                if let Some(stream) = event_stream {
+                    stream.append(
+                        EventType::ToolCallFailed,
+                        previous_agent.to_string(),
+                        serde_json::json!({
+                            "agent": self.config.name,
+                            "tool": tool_name,
+                            "tool_call_id": tool_call.id,
+                            "arguments": tool_call.function.arguments,
+                            "error": error_msg,
+                            "duration_ms": 0,
+                        }),
+                    );
+                }
+                return format!("Error: {}", error_msg);
+            }
+        };
+        
+        // Execute the tool
+        let start_time = std::time::Instant::now();
+        match registry.call_tool(tool_name, params.clone()).await {
+            Ok(result) => {
+                // Emit tool call completed event
+                if let Some(stream) = event_stream {
+                    stream.append(
+                        EventType::ToolCallCompleted,
+                        previous_agent.to_string(),
+                        serde_json::json!({
+                            "agent": self.config.name,
+                            "tool": tool_name,
+                            "tool_call_id": tool_call.id,
+                            "arguments": params,
+                            "result": result.output,
+                            "duration_ms": (result.duration_ms * 1000.0).round() / 1000.0,
+                        }),
+                    );
+                }
+                
+                // Convert result to string for LLM
+                serde_json::to_string(&result.output).unwrap_or_else(|_| result.output.to_string())
+            }
+            Err(e) => {
+                let error_msg = format!("Tool execution failed: {}", e);
+                if let Some(stream) = event_stream {
+                    stream.append(
+                        EventType::ToolCallFailed,
+                        previous_agent.to_string(),
+                        serde_json::json!({
+                            "agent": self.config.name,
+                            "tool": tool_name,
+                            "tool_call_id": tool_call.id,
+                            "arguments": params,
+                            "error": error_msg,
+                            "duration_ms": start_time.elapsed().as_secs_f64() * 1000.0,
+                        }),
+                    );
+                }
+                format!("Error: {}", error_msg)
+            }
         }
     }
 }

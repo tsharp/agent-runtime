@@ -1,5 +1,5 @@
 use agent_runtime::{
-    tool::{CalculatorTool, EchoTool},
+    tool::{CalculatorTool, EchoTool, ToolRegistry},
     AgentConfig, AgentStep, Runtime, Workflow,
 };
 use std::sync::Arc;
@@ -9,18 +9,23 @@ async fn main() {
     println!("=== Agent Workflow Runtime - Hello World Example ===\n");
 
     // Create tools
-    let echo_tool = Arc::new(EchoTool);
-    let calculator_tool = Arc::new(CalculatorTool);
+    let mut echo_registry = ToolRegistry::new();
+    echo_registry.register(EchoTool);
+    let echo_registry = Arc::new(echo_registry);
+    
+    let mut calc_registry = ToolRegistry::new();
+    calc_registry.register(CalculatorTool);
+    let calc_registry = Arc::new(calc_registry);
 
     // Build agents
     let greeter = AgentConfig::builder("greeter")
         .system_prompt("You are a friendly greeter. Say hello to the user.")
-        .tool(echo_tool.clone())
+        .tools(echo_registry)
         .build();
 
     let calculator = AgentConfig::builder("calculator")
         .system_prompt("You are a calculator. Perform mathematical operations.")
-        .tool(calculator_tool)
+        .tools(calc_registry)
         .build();
 
     let summarizer = AgentConfig::builder("summarizer")

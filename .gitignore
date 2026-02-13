@@ -22,3 +22,6 @@ target
 
 .vscode/
 .g.mmd
+
+# Workflow output files (logs, results, etc.)
+output/

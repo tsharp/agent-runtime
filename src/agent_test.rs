@@ -12,7 +12,8 @@ mod tests {
 
         assert_eq!(config.name, "test_agent");
         assert_eq!(config.system_prompt, "You are a test agent");
-        assert_eq!(config.tools.len(), 0);
+        assert!(config.tools.is_none());
+        assert_eq!(config.max_tool_iterations, 10);
     }
 
     #[test]
@@ -62,6 +63,6 @@ mod tests {
 
         let debug_str = format!("{:?}", config);
         assert!(debug_str.contains("debug_agent"));
-        assert!(debug_str.contains("0 tools"));
+        assert!(debug_str.contains("None"));
     }
 }
