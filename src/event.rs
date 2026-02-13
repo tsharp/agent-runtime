@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use tokio::sync::broadcast;
+use std::sync::{Arc, RwLock};
 use crate::types::{EventId, EventOffset, WorkflowId, JsonValue};
 
 /// Event types that can occur in the system
@@ -59,45 +61,88 @@ impl Event {
     }
 }
 
-/// Event stream for observability
+/// Event stream with broadcast capability for real-time subscribers
 pub struct EventStream {
-    events: Vec<Event>,
-    next_offset: EventOffset,
+    /// Broadcast sender for real-time event streaming
+    sender: broadcast::Sender<Event>,
+    
+    /// Historical events for replay (thread-safe)
+    history: Arc<RwLock<Vec<Event>>>,
+    
+    /// Next offset to assign
+    next_offset: Arc<RwLock<EventOffset>>,
 }
 
 impl EventStream {
+    /// Create a new event stream with specified channel capacity
     pub fn new() -> Self {
+        Self::with_capacity(1000)
+    }
+    
+    /// Create event stream with custom channel capacity
+    pub fn with_capacity(capacity: usize) -> Self {
+        let (sender, _) = broadcast::channel(capacity);
+        
         Self {
-            events: Vec::new(),
-            next_offset: 0,
+            sender,
+            history: Arc::new(RwLock::new(Vec::new())),
+            next_offset: Arc::new(RwLock::new(0)),
         }
     }
     
-    /// Append a new event
-    pub fn append(&mut self, event_type: EventType, workflow_id: WorkflowId, data: JsonValue) -> Event {
-        let event = Event::new(self.next_offset, event_type, workflow_id, data);
-        self.next_offset += 1;
-        self.events.push(event.clone());
+    /// Append a new event and broadcast to all subscribers
+    pub fn append(&self, event_type: EventType, workflow_id: WorkflowId, data: JsonValue) -> Event {
+        // Get and increment offset atomically
+        let offset = {
+            let mut next_offset = self.next_offset.write().unwrap();
+            let current = *next_offset;
+            *next_offset += 1;
+            current
+        };
+        
+        let event = Event::new(offset, event_type, workflow_id, data);
+        
+        // Store in history
+        self.history.write().unwrap().push(event.clone());
+        
+        // Broadcast to subscribers (ignore if no active receivers)
+        let _ = self.sender.send(event.clone());
+        
         event
     }
     
-    /// Get events from a specific offset
-    pub fn from_offset(&self, offset: EventOffset) -> impl Iterator<Item = &Event> {
-        self.events.iter().filter(move |e| e.offset >= offset)
+    /// Subscribe to real-time event stream
+    /// Returns a receiver that will get all future events
+    pub fn subscribe(&self) -> broadcast::Receiver<Event> {
+        self.sender.subscribe()
+    }
+    
+    /// Get events from a specific offset (for replay)
+    pub fn from_offset(&self, offset: EventOffset) -> Vec<Event> {
+        let history = self.history.read().unwrap();
+        history.iter()
+            .filter(|e| e.offset >= offset)
+            .cloned()
+            .collect()
     }
     
     /// Get all events
-    pub fn all(&self) -> &[Event] {
-        &self.events
+    pub fn all(&self) -> Vec<Event> {
+        self.history.read().unwrap().clone()
     }
     
     /// Get event count
     pub fn len(&self) -> usize {
-        self.events.len()
+        self.history.read().unwrap().len()
     }
     
     pub fn is_empty(&self) -> bool {
-        self.events.is_empty()
+        self.history.read().unwrap().is_empty()
+    }
+    
+    /// Get the current offset (next event will have this offset)
+    pub fn current_offset(&self) -> EventOffset {
+        *self.next_offset.read().unwrap()
     }
 }
 
@@ -106,3 +151,14 @@ impl Default for EventStream {
         Self::new()
     }
 }
+
+impl Clone for EventStream {
+    fn clone(&self) -> Self {
+        Self {
+            sender: self.sender.clone(),
+            history: Arc::clone(&self.history),
+            next_offset: Arc::clone(&self.next_offset),
+        }
+    }
+}
+

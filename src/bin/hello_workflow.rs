@@ -45,13 +45,32 @@ async fn main() {
     println!("Agents: {}\n", workflow.agents.len());
     
     // Create runtime and execute
-    let mut runtime = Runtime::new();
+    let runtime = Runtime::new();
+    
+    // Subscribe to event stream (simulate real-time listener)
+    let mut event_receiver = runtime.event_stream().subscribe();
+    
+    // Spawn task to listen to events in real-time
+    let event_listener = tokio::spawn(async move {
+        println!("📡 Real-time Event Listener Active\n");
+        let mut count = 0;
+        while let Ok(event) = event_receiver.recv().await {
+            count += 1;
+            println!(
+                "  [LIVE] Event #{}: {:?} @ offset {}",
+                count, event.event_type, event.offset
+            );
+        }
+    });
     
     println!("Executing workflow...\n");
     let run = runtime.execute(workflow).await;
     
+    // Give event listener a moment to process
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    
     // Print results
-    println!("=== Execution Complete ===");
+    println!("\n=== Execution Complete ===");
     println!("Status: {:?}", run.state);
     println!("Steps executed: {}\n", run.steps.len());
     
@@ -73,8 +92,8 @@ async fn main() {
         println!();
     }
     
-    // Print event stream
-    println!("=== Event Stream ({} events) ===", runtime.event_stream().len());
+    // Print event stream from history
+    println!("=== Event History ({} events) ===", runtime.event_stream().len());
     for event in runtime.event_stream().all() {
         println!(
             "[offset:{}] {:?} - {}",
@@ -84,10 +103,23 @@ async fn main() {
         );
     }
     
+    // Demonstrate offset-based replay
+    println!("\n=== Replay from Offset 5 ===");
+    let replayed_events = runtime.events_from_offset(5);
+    println!("Replaying {} events:", replayed_events.len());
+    for event in &replayed_events {
+        println!("  [offset:{}] {:?}", event.offset, event.event_type);
+    }
+    
     println!("\n=== Snapshot (JSON) ===");
     let snapshot = serde_json::json!({
         "run": run,
         "events": runtime.event_stream().all(),
+        "total_events": runtime.event_stream().len(),
+        "current_offset": runtime.event_stream().current_offset(),
     });
     println!("{}", serde_json::to_string_pretty(&snapshot).unwrap());
+    
+    // Clean up event listener
+    event_listener.abort();
 }

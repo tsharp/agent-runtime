@@ -1,6 +1,6 @@
 use crate::{
     agent::Agent,
-    event::{EventStream, EventType},
+    event::{Event, EventStream, EventType},
     types::{AgentInput, AgentInputMetadata},
     workflow::{Workflow, WorkflowRun, WorkflowState, WorkflowStep},
 };
@@ -18,7 +18,7 @@ impl Runtime {
     }
     
     /// Execute a workflow and return the run with complete history
-    pub async fn execute(&mut self, mut workflow: Workflow) -> WorkflowRun {
+    pub async fn execute(&self, mut workflow: Workflow) -> WorkflowRun {
         let workflow_id = workflow.id.clone();
         
         // Emit workflow started event
@@ -166,8 +166,8 @@ impl Runtime {
     }
     
     /// Get events from a specific offset (for replay)
-    pub fn events_from_offset(&self, offset: u64) -> Vec<&crate::event::Event> {
-        self.event_stream.from_offset(offset).collect()
+    pub fn events_from_offset(&self, offset: u64) -> Vec<Event> {
+        self.event_stream.from_offset(offset)
     }
 }
 

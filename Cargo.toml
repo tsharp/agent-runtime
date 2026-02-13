@@ -55,6 +55,10 @@ actix-web = { version = "4"}
 name = "hello_workflow"
 path = "src/bin/hello_workflow.rs"
 
+[[bin]]
+name = "multi_subscriber"
+path = "src/bin/multi_subscriber.rs"
+
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3.8"
