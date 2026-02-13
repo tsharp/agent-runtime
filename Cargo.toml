@@ -71,6 +71,10 @@ path = "src/bin/nested_workflow.rs"
 name = "mermaid_viz"
 path = "src/bin/mermaid_viz.rs"
 
+[[bin]]
+name = "complex_viz"
+path = "src/bin/complex_viz.rs"
+
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3.8"

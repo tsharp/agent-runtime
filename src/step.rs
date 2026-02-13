@@ -77,4 +77,14 @@ pub trait Step: Send + Sync {
     fn description(&self) -> Option<&str> {
         None
     }
+    
+    /// For conditional steps: get the branches (then, else)
+    fn get_branches(&self) -> Option<(&dyn Step, &dyn Step)> {
+        None
+    }
+    
+    /// For sub-workflow steps: get the workflow
+    fn get_sub_workflow(&self) -> Option<crate::workflow::Workflow> {
+        None
+    }
 }

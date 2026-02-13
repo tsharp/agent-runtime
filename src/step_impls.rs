@@ -171,6 +171,10 @@ impl Step for ConditionalStep {
     fn step_type(&self) -> StepType {
         StepType::Conditional
     }
+    
+    fn get_branches(&self) -> Option<(&dyn Step, &dyn Step)> {
+        Some((self.true_step.as_ref(), self.false_step.as_ref()))
+    }
 }
 
 /// A step that executes an entire workflow as a sub-workflow
@@ -249,5 +253,9 @@ impl Step for SubWorkflowStep {
     
     fn description(&self) -> Option<&str> {
         Some("Executes a nested workflow")
+    }
+    
+    fn get_sub_workflow(&self) -> Option<crate::workflow::Workflow> {
+        Some((self.workflow_builder)())
     }
 }
