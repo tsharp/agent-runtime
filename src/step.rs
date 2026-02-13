@@ -67,6 +67,12 @@ pub struct ExecutionContext<'a> {
     pub event_stream: Option<&'a EventStream>,
 }
 
+impl<'a> Default for ExecutionContext<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> ExecutionContext<'a> {
     pub fn new() -> Self {
         Self { event_stream: None }

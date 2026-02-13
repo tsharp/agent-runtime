@@ -11,7 +11,7 @@ async fn main() {
     let validation_workflow_builder = || {
         let validate_step = TransformStep::new("validate_input".to_string(), |data| {
             let num = data.get("value").and_then(|v| v.as_i64()).unwrap_or(0);
-            let is_valid = num >= 0 && num <= 100;
+            let is_valid = (0..=100).contains(&num);
             serde_json::json!({
                 "value": num,
                 "is_valid": is_valid,

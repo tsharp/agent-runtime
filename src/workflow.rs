@@ -55,7 +55,7 @@ impl Workflow {
         diagram.push_str("    End([End])\n");
 
         // Add styling
-        diagram.push_str("\n");
+        diagram.push('\n');
         diagram.push_str("    classDef agentStyle fill:#e1f5ff,stroke:#01579b,stroke-width:2px\n");
         diagram
             .push_str("    classDef transformStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px\n");
@@ -657,7 +657,7 @@ impl WorkflowRun {
         diagram.push_str(&format!("    End([End]){}\n", end_style));
 
         // Add styling
-        diagram.push_str("\n");
+        diagram.push('\n');
         diagram
             .push_str("    classDef successStyle fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px\n");
         diagram

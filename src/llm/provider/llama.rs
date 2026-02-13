@@ -172,7 +172,7 @@ impl ChatClient for LlamaClient {
         let text_stream = stream.map(|chunk_result| {
             chunk_result
                 .map_err(|e| LlmError::NetworkError(e.to_string()))
-                .and_then(|bytes| {
+                .map(|bytes| {
                     // Parse SSE format: "data: {...}\n\n"
                     let text = String::from_utf8_lossy(&bytes);
                     for line in text.lines() {
@@ -189,12 +189,12 @@ impl ChatClient for LlamaClient {
                                     .and_then(|d| d.get("content"))
                                     .and_then(|c| c.as_str())
                                 {
-                                    return Ok(delta.to_string());
+                                    return delta.to_string();
                                 }
                             }
                         }
                     }
-                    Ok(String::new())
+                    String::new()
                 })
         });
 
