@@ -75,6 +75,10 @@ pub struct WorkflowRun {
     pub state: WorkflowState,
     pub steps: Vec<WorkflowStepRecord>,
     pub final_output: Option<JsonValue>,
+    
+    /// Parent workflow ID if this is a sub-workflow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_workflow_id: Option<String>,
 }
 
 /// A single step record in workflow execution

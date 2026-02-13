@@ -2,6 +2,8 @@ use async_trait::async_trait;
 use crate::{
     agent::{Agent, AgentConfig},
     step::{Step, StepInput, StepOutput, StepResult, StepType, StepError, StepOutputMetadata},
+    workflow::Workflow,
+    runtime::Runtime,
 };
 
 /// A step that executes an agent
@@ -168,5 +170,84 @@ impl Step for ConditionalStep {
     
     fn step_type(&self) -> StepType {
         StepType::Conditional
+    }
+}
+
+/// A step that executes an entire workflow as a sub-workflow
+pub struct SubWorkflowStep {
+    name: String,
+    workflow_builder: Box<dyn Fn() -> Workflow + Send + Sync>,
+}
+
+impl SubWorkflowStep {
+    pub fn new<F>(name: String, workflow_builder: F) -> Self
+    where
+        F: Fn() -> Workflow + Send + Sync + 'static,
+    {
+        Self {
+            name,
+            workflow_builder: Box::new(workflow_builder),
+        }
+    }
+    
+    /// Execute the sub-workflow using the provided runtime
+    /// This ensures events are emitted to the parent's event stream
+    pub(crate) fn execute_with_runtime<'a>(
+        &'a self,
+        input: StepInput,
+        runtime: &'a crate::runtime::Runtime,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = StepResult> + Send + 'a>> {
+        Box::pin(async move {
+            let start = std::time::Instant::now();
+            
+            // Build the sub-workflow
+            let mut sub_workflow = (self.workflow_builder)();
+            
+            // Override initial input with step input
+            sub_workflow.initial_input = input.data.clone();
+            
+            // Execute the sub-workflow with parent context
+            let parent_workflow_id = Some(input.metadata.workflow_id.clone());
+            let run = runtime.execute_with_parent(sub_workflow, parent_workflow_id).await;
+            
+            if run.state != crate::workflow::WorkflowState::Completed {
+                return Err(StepError::ExecutionFailed(
+                    format!("Sub-workflow failed: {:?}", run.state)
+                ));
+            }
+            
+            let output_data = run.final_output.unwrap_or(serde_json::json!({}));
+            
+            Ok(StepOutput {
+                data: output_data,
+                metadata: StepOutputMetadata {
+                    step_name: self.name.clone(),
+                    step_type: StepType::SubWorkflow,
+                    execution_time_ms: start.elapsed().as_millis() as u64,
+                },
+            })
+        })
+    }
+}
+
+#[async_trait]
+impl Step for SubWorkflowStep {
+    async fn execute(&self, input: StepInput) -> StepResult {
+        // This creates a new runtime - won't share events with parent
+        // Use execute_with_runtime() from the parent runtime instead
+        let runtime = Runtime::new();
+        self.execute_with_runtime(input, &runtime).await
+    }
+    
+    fn name(&self) -> &str {
+        &self.name
+    }
+    
+    fn step_type(&self) -> StepType {
+        StepType::SubWorkflow
+    }
+    
+    fn description(&self) -> Option<&str> {
+        Some("Executes a nested workflow")
     }
 }

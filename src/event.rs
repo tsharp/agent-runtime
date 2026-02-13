@@ -40,6 +40,11 @@ pub struct Event {
     #[serde(rename = "type")]
     pub event_type: EventType,
     pub workflow_id: WorkflowId,
+    
+    /// Optional parent workflow ID for nested workflows
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_workflow_id: Option<WorkflowId>,
+    
     pub data: JsonValue,
 }
 
@@ -56,6 +61,25 @@ impl Event {
             timestamp: Utc::now(),
             event_type,
             workflow_id,
+            parent_workflow_id: None,
+            data,
+        }
+    }
+    
+    pub fn with_parent(
+        offset: EventOffset,
+        event_type: EventType,
+        workflow_id: WorkflowId,
+        parent_workflow_id: Option<WorkflowId>,
+        data: JsonValue,
+    ) -> Self {
+        Self {
+            id: format!("evt_{}", uuid::Uuid::new_v4()),
+            offset,
+            timestamp: Utc::now(),
+            event_type,
+            workflow_id,
+            parent_workflow_id,
             data,
         }
     }
@@ -92,6 +116,17 @@ impl EventStream {
     
     /// Append a new event and broadcast to all subscribers
     pub fn append(&self, event_type: EventType, workflow_id: WorkflowId, data: JsonValue) -> Event {
+        self.append_with_parent(event_type, workflow_id, None, data)
+    }
+    
+    /// Append event with optional parent workflow ID
+    pub fn append_with_parent(
+        &self,
+        event_type: EventType,
+        workflow_id: WorkflowId,
+        parent_workflow_id: Option<WorkflowId>,
+        data: JsonValue,
+    ) -> Event {
         // Get and increment offset atomically
         let offset = {
             let mut next_offset = self.next_offset.write().unwrap();
@@ -100,7 +135,7 @@ impl EventStream {
             current
         };
         
-        let event = Event::new(offset, event_type, workflow_id, data);
+        let event = Event::with_parent(offset, event_type, workflow_id, parent_workflow_id, data);
         
         // Store in history
         self.history.write().unwrap().push(event.clone());

@@ -16,4 +16,4 @@ pub use workflow::{Workflow, WorkflowBuilder};
 pub use runtime::Runtime;
 pub use event::{Event, EventType, EventStream};
 pub use step::{Step, StepInput, StepOutput, StepResult, StepType, StepError};
-pub use step_impls::{AgentStep, TransformStep, ConditionalStep};
+pub use step_impls::{AgentStep, TransformStep, ConditionalStep, SubWorkflowStep};

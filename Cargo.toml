@@ -63,6 +63,10 @@ path = "src/bin/multi_subscriber.rs"
 name = "step_types_demo"
 path = "src/bin/step_types_demo.rs"
 
+[[bin]]
+name = "nested_workflow"
+path = "src/bin/nested_workflow.rs"
+
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3.8"
