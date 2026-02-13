@@ -131,10 +131,10 @@ async fn main() {
     println!();
 
     // Save to file
-    std::fs::write("complex_workflow.mmd", mermaid.clone()).expect("Failed to write diagram");
+    std::fs::write("complex_workflow.g.mmd", mermaid.clone()).expect("Failed to write diagram");
 
     println!("=== Diagram Saved ===");
-    println!("  - complex_workflow.mmd");
+    println!("  - complex_workflow.g.mmd");
     println!();
     println!("View at: https://mermaid.live/");
     println!();

@@ -99,14 +99,14 @@ async fn main() {
     println!();
 
     // Save to file
-    std::fs::write("workflow_structure.mmd", mermaid_definition.clone())
+    std::fs::write("workflow_structure.g.mmd", mermaid_definition.clone())
         .expect("Failed to write structure diagram");
-    std::fs::write("workflow_results.mmd", mermaid_results.clone())
+    std::fs::write("workflow_results.g.mmd", mermaid_results.clone())
         .expect("Failed to write results diagram");
 
     println!("=== Diagrams Saved ===");
-    println!("  - workflow_structure.mmd (structure only)");
-    println!("  - workflow_results.mmd (with execution results)");
+    println!("  - workflow_structure.g.mmd (structure only)");
+    println!("  - workflow_results.g.mmd (with execution results)");
     println!();
     println!("View online at: https://mermaid.live/");
     println!("Or in VS Code with Mermaid extension");
