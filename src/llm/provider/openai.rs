@@ -39,6 +39,7 @@ impl ChatClient for OpenAIClient {
             temperature: request.temperature,
             max_tokens: request.max_tokens,
             top_p: request.top_p,
+            tools: request.tools,
         };
 
         // Send request
@@ -75,6 +76,21 @@ impl ChatClient for OpenAIClient {
             .first()
             .ok_or_else(|| LlmError::ParseError("No choices in response".to_string()))?;
 
+        // Convert OpenAI tool_calls to our ToolCall type
+        let tool_calls = choice.message.tool_calls.as_ref().map(|calls| {
+            calls
+                .iter()
+                .map(|tc| super::super::types::ToolCall {
+                    id: tc.id.clone(),
+                    r#type: tc.r#type.clone(),
+                    function: super::super::types::FunctionCall {
+                        name: tc.function.name.clone(),
+                        arguments: tc.function.arguments.clone(),
+                    },
+                })
+                .collect()
+        });
+
         Ok(ChatResponse {
             content: choice.message.content.clone(),
             model: openai_response.model,
@@ -84,6 +100,7 @@ impl ChatClient for OpenAIClient {
                 total_tokens: u.total_tokens,
             }),
             finish_reason: choice.finish_reason.clone(),
+            tool_calls,
         })
     }
 
@@ -119,6 +136,9 @@ struct OpenAIChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -136,7 +156,24 @@ struct Choice {
 
 #[derive(Debug, Deserialize)]
 struct Message {
+    #[serde(default)]
     content: String,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<OpenAIToolCall>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIToolCall {
+    id: String,
+    r#type: String,
+    function: OpenAIFunction,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAIFunction {
+    name: String,
+    arguments: String,
 }
 
 #[derive(Debug, Deserialize)]

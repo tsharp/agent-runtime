@@ -44,6 +44,31 @@ pub trait ChatClient: Send + Sync {
 
     /// Stream a chat completion request (yields text chunks as they arrive)
     async fn chat_stream(&self, request: ChatRequest) -> LlmResult<TextStream>;
+    
+    /// Stream chat and return complete response with tool_calls
+    /// Default implementation uses chat_stream() + chat() but providers can optimize
+    async fn chat_stream_complete(
+        &self,
+        request: ChatRequest,
+        chunk_callback: Box<dyn FnMut(String) + Send>,
+    ) -> LlmResult<ChatResponse> {
+        // Stream the response
+        let mut stream = self.chat_stream(request.clone()).await?;
+        let mut callback = chunk_callback;
+        use futures::StreamExt;
+        
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    callback(chunk);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        
+        // Get full response with tool_calls
+        self.chat(request).await
+    }
 
     /// Get the model name this client uses
     fn model(&self) -> &str;

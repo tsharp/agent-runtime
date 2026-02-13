@@ -1,4 +1,4 @@
-use agent_runtime::{event::EventType, tool::EchoTool, AgentConfig, AgentStep, Runtime, Workflow};
+use agent_runtime::{event::EventType, tool::{EchoTool, ToolRegistry}, AgentConfig, AgentStep, Runtime, Workflow};
 use std::sync::Arc;
 
 #[tokio::main]
@@ -6,9 +6,12 @@ async fn main() {
     println!("=== Multi-Subscriber Event Stream Demo ===\n");
 
     // Create a simple workflow
+    let mut registry = ToolRegistry::new();
+    registry.register(EchoTool);
+    
     let agent = AgentConfig::builder("demo_agent")
         .system_prompt("Demo agent for testing event streams.")
-        .tool(Arc::new(EchoTool))
+        .tools(Arc::new(registry))
         .build();
 
     let workflow = Workflow::builder()

@@ -1,5 +1,5 @@
 use agent_runtime::{
-    tool::CalculatorTool, AgentConfig, AgentStep, ConditionalStep, Runtime, SubWorkflowStep,
+    tool::{CalculatorTool, ToolRegistry}, AgentConfig, AgentStep, ConditionalStep, Runtime, SubWorkflowStep,
     TransformStep, Workflow,
 };
 use std::sync::Arc;
@@ -13,9 +13,12 @@ async fn main() {
         .system_prompt("Greet the user")
         .build();
 
+    let mut registry = ToolRegistry::new();
+    registry.register(CalculatorTool);
+
     let calculator = AgentConfig::builder("calculator")
         .system_prompt("Perform calculations")
-        .tool(Arc::new(CalculatorTool))
+        .tools(Arc::new(registry))
         .build();
 
     let extract_transform = TransformStep::new("extract_value".to_string(), |data| {

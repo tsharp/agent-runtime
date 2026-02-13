@@ -73,7 +73,7 @@ impl LlamaClient {
 #[async_trait]
 impl ChatClient for LlamaClient {
     async fn chat(&self, request: ChatRequest) -> LlmResult<ChatResponse> {
-        let url = format!("{}/v1/chat/completions", self.base_url);
+        let url = format!("{}/chat/completions", self.base_url);
 
         // Build llama.cpp-compatible request
         let llama_request = LlamaChatRequest {
@@ -82,6 +82,7 @@ impl ChatClient for LlamaClient {
             temperature: request.temperature,
             max_tokens: request.max_tokens,
             top_p: request.top_p,
+            tools: request.tools,
         };
 
         // Send request
@@ -116,6 +117,21 @@ impl ChatClient for LlamaClient {
             .first()
             .ok_or_else(|| LlmError::ParseError("No choices in response".to_string()))?;
 
+        // Convert llama.cpp tool_calls to our ToolCall type
+        let tool_calls = choice.message.tool_calls.as_ref().map(|calls| {
+            calls
+                .iter()
+                .map(|tc| super::super::types::ToolCall {
+                    id: tc.id.clone(),
+                    r#type: tc.r#type.clone(),
+                    function: super::super::types::FunctionCall {
+                        name: tc.function.name.clone(),
+                        arguments: tc.function.arguments.clone(),
+                    },
+                })
+                .collect()
+        });
+
         Ok(ChatResponse {
             content: choice.message.content.clone(),
             model: llama_response.model.unwrap_or_else(|| self.model.clone()),
@@ -125,6 +141,7 @@ impl ChatClient for LlamaClient {
                 total_tokens: u.total_tokens,
             }),
             finish_reason: choice.finish_reason.clone(),
+            tool_calls,
         })
     }
 
@@ -138,6 +155,7 @@ impl ChatClient for LlamaClient {
             temperature: request.temperature,
             max_tokens: request.max_tokens,
             top_p: request.top_p,
+            tools: request.tools,
         };
 
         // Send request with streaming
@@ -152,6 +170,7 @@ impl ChatClient for LlamaClient {
                 "temperature": llama_request.temperature,
                 "max_tokens": llama_request.max_tokens,
                 "top_p": llama_request.top_p,
+                "tools": llama_request.tools,
                 "stream": true,
             }))
             .send()
@@ -225,6 +244,9 @@ struct LlamaChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tools: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -242,7 +264,24 @@ struct Choice {
 
 #[derive(Debug, Deserialize)]
 struct Message {
+    #[serde(default)]
     content: String,
+    
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tool_calls: Option<Vec<LlamaToolCall>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LlamaToolCall {
+    id: String,
+    r#type: String,
+    function: LlamaFunction,
+}
+
+#[derive(Debug, Deserialize)]
+struct LlamaFunction {
+    name: String,
+    arguments: String,
 }
 
 #[derive(Debug, Deserialize)]
