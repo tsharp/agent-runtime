@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
+#[path = "types_test.rs"]
+mod types_test;
+
 /// Role of a message in a conversation
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]

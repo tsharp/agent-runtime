@@ -2,6 +2,10 @@ use serde::{Deserialize, Serialize};
 use crate::types::JsonValue;
 use crate::step::{Step, StepType};
 
+#[cfg(test)]
+#[path = "workflow_test.rs"]
+mod workflow_test;
+
 /// Workflow execution state
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]

@@ -6,6 +6,10 @@ use crate::{
     runtime::Runtime,
 };
 
+#[cfg(test)]
+#[path = "step_impls_test.rs"]
+mod step_impls_test;
+
 /// A step that executes an agent
 pub struct AgentStep {
     agent: Agent,

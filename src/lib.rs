@@ -13,7 +13,7 @@ pub mod llm;
 pub use types::*;
 pub use tool::Tool;
 pub use agent::{Agent, AgentConfig};
-pub use workflow::{Workflow, WorkflowBuilder};
+pub use workflow::{Workflow, WorkflowBuilder, WorkflowState};
 pub use runtime::Runtime;
 pub use event::{Event, EventType, EventStream};
 pub use step::{Step, StepInput, StepOutput, StepResult, StepType, StepError, ExecutionContext};

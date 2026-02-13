@@ -6,6 +6,10 @@ use crate::llm::{ChatClient, ChatMessage, ChatRequest};
 use crate::event::{EventStream, EventType};
 use futures::StreamExt;
 
+#[cfg(test)]
+#[path = "agent_test.rs"]
+mod agent_test;
+
 /// Agent configuration
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AgentConfig {

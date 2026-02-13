@@ -4,6 +4,10 @@ use tokio::sync::broadcast;
 use std::sync::{Arc, RwLock};
 use crate::types::{EventId, EventOffset, WorkflowId, JsonValue};
 
+#[cfg(test)]
+#[path = "event_test.rs"]
+mod event_test;
+
 /// Event types that can occur in the system
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
