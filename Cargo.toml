@@ -59,6 +59,10 @@ path = "src/bin/hello_workflow.rs"
 name = "multi_subscriber"
 path = "src/bin/multi_subscriber.rs"
 
+[[bin]]
+name = "step_types_demo"
+path = "src/bin/step_types_demo.rs"
+
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3.8"

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use crate::agent::AgentConfig;
-use crate::types::{WorkflowId, JsonValue};
+use crate::types::JsonValue;
+use crate::step::Step;
 
 /// Workflow execution state
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -13,10 +13,9 @@ pub enum WorkflowState {
 }
 
 /// Workflow definition
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Workflow {
-    pub id: WorkflowId,
-    pub agents: Vec<AgentConfig>,
+    pub id: String,
+    pub steps: Vec<Box<dyn Step>>,
     pub initial_input: JsonValue,
     pub state: WorkflowState,
 }
@@ -29,23 +28,25 @@ impl Workflow {
 
 /// Builder for Workflow
 pub struct WorkflowBuilder {
-    agents: Vec<AgentConfig>,
+    steps: Vec<Box<dyn Step>>,
     initial_input: Option<JsonValue>,
 }
 
 impl WorkflowBuilder {
     pub fn new() -> Self {
         Self {
-            agents: Vec::new(),
+            steps: Vec::new(),
             initial_input: None,
         }
     }
     
-    pub fn agent(mut self, agent: AgentConfig) -> Self {
-        self.agents.push(agent);
+    /// Add a step to the workflow
+    pub fn step(mut self, step: Box<dyn Step>) -> Self {
+        self.steps.push(step);
         self
     }
     
+    /// Set the initial input
     pub fn initial_input(mut self, input: JsonValue) -> Self {
         self.initial_input = Some(input);
         self
@@ -54,7 +55,7 @@ impl WorkflowBuilder {
     pub fn build(self) -> Workflow {
         Workflow {
             id: format!("wf_{}", uuid::Uuid::new_v4()),
-            agents: self.agents,
+            steps: self.steps,
             initial_input: self.initial_input.unwrap_or(serde_json::json!({})),
             state: WorkflowState::Pending,
         }
@@ -70,18 +71,20 @@ impl Default for WorkflowBuilder {
 /// A workflow execution run with complete history
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowRun {
-    pub workflow_id: WorkflowId,
+    pub workflow_id: String,
     pub state: WorkflowState,
-    pub steps: Vec<WorkflowStep>,
+    pub steps: Vec<WorkflowStepRecord>,
     pub final_output: Option<JsonValue>,
 }
 
-/// A single step in workflow execution
+/// A single step record in workflow execution
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WorkflowStep {
+pub struct WorkflowStepRecord {
     pub step_index: usize,
-    pub agent_name: String,
+    pub step_name: String,
+    pub step_type: String,
     pub input: JsonValue,
     pub output: Option<JsonValue>,
     pub execution_time_ms: Option<u64>,
 }
+

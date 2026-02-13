@@ -1,8 +1,7 @@
 use crate::{
-    agent::Agent,
     event::{Event, EventStream, EventType},
-    types::{AgentInput, AgentInputMetadata},
-    workflow::{Workflow, WorkflowRun, WorkflowState, WorkflowStep},
+    step::{StepInput, StepInputMetadata},
+    workflow::{Workflow, WorkflowRun, WorkflowState, WorkflowStepRecord},
 };
 
 /// Runtime for executing workflows
@@ -26,7 +25,7 @@ impl Runtime {
             EventType::WorkflowStarted,
             workflow_id.clone(),
             serde_json::json!({
-                "agent_count": workflow.agents.len(),
+                "step_count": workflow.steps.len(),
             }),
         );
         
@@ -41,9 +40,10 @@ impl Runtime {
         
         let mut current_data = workflow.initial_input.clone();
         
-        // Execute each agent in sequence
-        for (step_index, agent_config) in workflow.agents.iter().enumerate() {
-            let agent = Agent::new(agent_config.clone());
+        // Execute each step in sequence
+        for (step_index, step) in workflow.steps.iter().enumerate() {
+            let step_name = step.name().to_string();
+            let step_type = format!("{:?}", step.step_type());
             
             // Emit step started event
             self.event_stream.append(
@@ -51,78 +51,59 @@ impl Runtime {
                 workflow_id.clone(),
                 serde_json::json!({
                     "step_index": step_index,
-                    "agent_name": agent.name(),
+                    "step_name": &step_name,
+                    "step_type": &step_type,
                 }),
             );
             
-            // Create agent input
-            let input = AgentInput {
+            // Create step input
+            let input = StepInput {
                 data: current_data.clone(),
-                metadata: AgentInputMetadata {
+                metadata: StepInputMetadata {
                     step_index,
-                    previous_agent: if step_index > 0 {
-                        Some(workflow.agents[step_index - 1].name.clone())
+                    previous_step: if step_index > 0 {
+                        Some(workflow.steps[step_index - 1].name().to_string())
                     } else {
                         None
                     },
+                    workflow_id: workflow_id.clone(),
                 },
             };
             
-            // Emit agent initialized
-            self.event_stream.append(
-                EventType::AgentInitialized,
-                workflow_id.clone(),
-                serde_json::json!({
-                    "agent_name": agent.name(),
-                    "step_index": step_index,
-                }),
-            );
-            
-            // Execute agent
-            let step_start = std::time::Instant::now();
-            match agent.execute(input.clone()).await {
+            // Execute step
+            match step.execute(input.clone()).await {
                 Ok(output) => {
-                    let execution_time = step_start.elapsed().as_millis() as u64;
-                    
-                    // Emit agent completed
-                    self.event_stream.append(
-                        EventType::AgentCompleted,
-                        workflow_id.clone(),
-                        serde_json::json!({
-                            "agent_name": agent.name(),
-                            "execution_time_ms": execution_time,
-                        }),
-                    );
-                    
-                    // Record step
-                    run.steps.push(WorkflowStep {
-                        step_index,
-                        agent_name: agent.name().to_string(),
-                        input: input.data,
-                        output: Some(output.data.clone()),
-                        execution_time_ms: Some(execution_time),
-                    });
-                    
-                    // Pass output to next agent
-                    current_data = output.data;
-                    
                     // Emit step completed
                     self.event_stream.append(
                         EventType::WorkflowStepCompleted,
                         workflow_id.clone(),
                         serde_json::json!({
                             "step_index": step_index,
-                            "agent_name": agent.name(),
+                            "step_name": &step_name,
+                            "execution_time_ms": output.metadata.execution_time_ms,
                         }),
                     );
+                    
+                    // Record step
+                    run.steps.push(WorkflowStepRecord {
+                        step_index,
+                        step_name: step_name.clone(),
+                        step_type: step_type.clone(),
+                        input: input.data,
+                        output: Some(output.data.clone()),
+                        execution_time_ms: Some(output.metadata.execution_time_ms),
+                    });
+                    
+                    // Pass output to next step
+                    current_data = output.data;
                 }
                 Err(e) => {
-                    // Emit agent failed
+                    // Emit step failed
                     self.event_stream.append(
-                        EventType::AgentFailed,
+                        EventType::AgentFailed, // TODO: Add StepFailed event type
                         workflow_id.clone(),
                         serde_json::json!({
-                            "agent_name": agent.name(),
+                            "step_name": &step_name,
                             "error": e.to_string(),
                         }),
                     );
@@ -176,3 +157,4 @@ impl Default for Runtime {
         Self::new()
     }
 }
+

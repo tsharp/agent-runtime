@@ -1,5 +1,6 @@
 use agent_runtime::{
-    AgentConfig, Runtime, Workflow, tool::{EchoTool, CalculatorTool}
+    AgentConfig, Runtime, Workflow, AgentStep,
+    tool::{EchoTool, CalculatorTool}
 };
 use std::sync::Arc;
 
@@ -26,11 +27,11 @@ async fn main() {
         .system_prompt("You summarize the results from previous steps.")
         .build();
     
-    // Build workflow
+    // Build workflow with steps (NEW API)
     let workflow = Workflow::builder()
-        .agent(greeter)
-        .agent(calculator)
-        .agent(summarizer)
+        .step(Box::new(AgentStep::new(greeter)))
+        .step(Box::new(AgentStep::new(calculator)))
+        .step(Box::new(AgentStep::new(summarizer)))
         .initial_input(serde_json::json!({
             "user_name": "World",
             "calculation": {
@@ -42,7 +43,7 @@ async fn main() {
         .build();
     
     println!("Workflow ID: {}", workflow.id);
-    println!("Agents: {}\n", workflow.agents.len());
+    println!("Steps: {}\n", workflow.steps.len());
     
     // Create runtime and execute
     let runtime = Runtime::new();
@@ -75,7 +76,7 @@ async fn main() {
     println!("Steps executed: {}\n", run.steps.len());
     
     for step in &run.steps {
-        println!("Step {}: {}", step.step_index, step.agent_name);
+        println!("Step {}: {} ({})", step.step_index, step.step_name, step.step_type);
         println!("  Input: {}", serde_json::to_string_pretty(&step.input).unwrap());
         if let Some(ref output) = step.output {
             println!("  Output: {}", serde_json::to_string_pretty(output).unwrap());

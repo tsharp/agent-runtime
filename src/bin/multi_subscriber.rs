@@ -1,5 +1,6 @@
 use agent_runtime::{
-    AgentConfig, Runtime, Workflow, tool::EchoTool,
+    AgentConfig, Runtime, Workflow, AgentStep,
+    tool::EchoTool,
     event::EventType,
 };
 use std::sync::Arc;
@@ -15,7 +16,7 @@ async fn main() {
         .build();
     
     let workflow = Workflow::builder()
-        .agent(agent)
+        .step(Box::new(AgentStep::new(agent)))
         .initial_input(serde_json::json!({"test": "data"}))
         .build();
     
