@@ -1,7 +1,6 @@
 use agent_runtime::{
-    AgentConfig, Agent, Workflow, AgentStep, Runtime,
-    llm::{LlamaClient, ChatClient},
-    EventType,
+    llm::{ChatClient, LlamaClient},
+    Agent, AgentConfig, AgentStep, EventType, Runtime, Workflow,
 };
 use std::sync::Arc;
 use tokio::task;
@@ -9,60 +8,75 @@ use tokio::task;
 #[tokio::main]
 async fn main() {
     println!("=== Workflow Demo ===\n");
-    
+
     // Create LLM client (insecure HTTPS for local dev)
-    let llm_client: Arc<dyn ChatClient> = Arc::new(
-        LlamaClient::insecure("https://192.168.91.57", "default")
-    );
-    
+    let llm_client: Arc<dyn ChatClient> =
+        Arc::new(LlamaClient::insecure("https://192.168.91.57", "default"));
+
     println!("✓ LLM client configured (https://192.168.91.57 - insecure)\n");
-    
+
     // Create agents
     let greeter = Agent::new(
         AgentConfig::builder("greeter")
             .system_prompt("You are a friendly greeter. Say hello and introduce yourself warmly.")
-            .build()
-    ).with_llm_client(llm_client.clone());
-    
+            .build(),
+    )
+    .with_llm_client(llm_client.clone());
+
     let analyzer = Agent::new(
         AgentConfig::builder("analyzer")
             .system_prompt("You are a thoughtful analyzer. Analyze the input and provide insights.")
-            .build()
-    ).with_llm_client(llm_client.clone());
-    
+            .build(),
+    )
+    .with_llm_client(llm_client.clone());
+
     let summarizer = Agent::new(
         AgentConfig::builder("summarizer")
-            .system_prompt("You are a concise summarizer. Summarize the conversation in 2-3 sentences.")
-            .build()
-    ).with_llm_client(llm_client.clone());
-    
+            .system_prompt(
+                "You are a concise summarizer. Summarize the conversation in 2-3 sentences.",
+            )
+            .build(),
+    )
+    .with_llm_client(llm_client.clone());
+
     println!("✓ Created 3 agents: greeter → analyzer → summarizer\n");
-    
+
     // Build workflow
     let workflow = Workflow::builder()
-        .step(Box::new(AgentStep::from_agent(greeter, "greeter".to_string())))
-        .step(Box::new(AgentStep::from_agent(analyzer, "analyzer".to_string())))
-        .step(Box::new(AgentStep::from_agent(summarizer, "summarizer".to_string())))
-        .initial_input(serde_json::json!("Hello! I'm interested in learning about AI agents."))
+        .step(Box::new(AgentStep::from_agent(
+            greeter,
+            "greeter".to_string(),
+        )))
+        .step(Box::new(AgentStep::from_agent(
+            analyzer,
+            "analyzer".to_string(),
+        )))
+        .step(Box::new(AgentStep::from_agent(
+            summarizer,
+            "summarizer".to_string(),
+        )))
+        .initial_input(serde_json::json!(
+            "Hello! I'm interested in learning about AI agents."
+        ))
         .build();
-    
+
     println!("✓ Workflow built with 3 sequential steps\n");
-    
+
     // Show mermaid diagram
     println!("Workflow Structure:");
     println!("{}\n", workflow.to_mermaid());
-    
+
     // Create runtime
     let runtime = Runtime::new();
-    
+
     // Subscribe to events in a separate task
     let mut event_receiver = runtime.event_stream().subscribe();
     let event_task = task::spawn(async move {
         println!("📡 Streaming Agent Responses\n");
         println!("{}", "=".repeat(60));
-        
+
         let _current_agent: Option<String> = None;
-        
+
         while let Ok(event) = event_receiver.recv().await {
             match event.event_type {
                 EventType::AgentProcessing => {
@@ -79,7 +93,7 @@ async fn main() {
                     }
                 }
                 EventType::AgentLlmRequestCompleted => {
-                    println!();  // New line after streaming completes
+                    println!(); // New line after streaming completes
                 }
                 EventType::AgentLlmRequestFailed => {
                     if let Some(_agent) = event.data.get("agent").and_then(|v| v.as_str()) {
@@ -102,29 +116,30 @@ async fn main() {
             }
         }
     });
-    
+
     // Execute workflow
     println!("\n▶ Starting workflow execution...\n");
-    
+
     let result = runtime.execute(workflow).await;
-    
+
     // Wait for event task to finish
     let _ = event_task.await;
-    
+
     // Show final results
     println!("\n{}", "=".repeat(60));
     println!("\n📊 Final Results\n");
-    
+
     if let Some(output) = &result.final_output {
         println!("Output:");
         println!("{}\n", serde_json::to_string_pretty(&output).unwrap());
     }
-    
+
     println!("Steps executed: {}", result.steps.len());
     for (i, step) in result.steps.iter().enumerate() {
-        println!("  {}. {} ({}) - {}ms", 
-            i+1, 
-            step.step_name, 
+        println!(
+            "  {}. {} ({}) - {}ms",
+            i + 1,
+            step.step_name,
             step.step_type,
             step.execution_time_ms.unwrap_or(0)
         );

@@ -88,8 +88,7 @@ mod tests {
     #[test]
     fn test_request_serialization() {
         let messages = vec![ChatMessage::user("Test")];
-        let request = ChatRequest::new(messages)
-            .with_temperature(0.5);
+        let request = ChatRequest::new(messages).with_temperature(0.5);
 
         let json = serde_json::to_value(&request).unwrap();
         assert!(json.get("messages").is_some());

@@ -48,7 +48,7 @@ mod tests {
         let output = result.unwrap();
         assert_eq!(output.metadata.agent_name, "mock_agent");
         assert!(output.metadata.execution_time_ms < 10000); // Should complete quickly
-        
+
         // Should be mock execution
         assert_eq!(output.data["agent"], "mock_agent");
         assert_eq!(output.data["system_prompt"], "Mock prompt");

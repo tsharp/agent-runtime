@@ -32,11 +32,7 @@ mod tests {
     fn test_event_stream_multiple_events() {
         let stream = EventStream::new();
 
-        stream.append(
-            EventType::WorkflowStarted,
-            "wf_123".to_string(),
-            json!({}),
-        );
+        stream.append(EventType::WorkflowStarted, "wf_123".to_string(), json!({}));
 
         stream.append(
             EventType::WorkflowStepStarted,
@@ -59,8 +55,16 @@ mod tests {
         let stream = EventStream::new();
 
         stream.append(EventType::WorkflowStarted, "wf_123".to_string(), json!({}));
-        stream.append(EventType::WorkflowStepStarted, "wf_123".to_string(), json!({}));
-        stream.append(EventType::WorkflowStepCompleted, "wf_123".to_string(), json!({}));
+        stream.append(
+            EventType::WorkflowStepStarted,
+            "wf_123".to_string(),
+            json!({}),
+        );
+        stream.append(
+            EventType::WorkflowStepCompleted,
+            "wf_123".to_string(),
+            json!({}),
+        );
 
         let events = stream.from_offset(1);
         assert_eq!(events.len(), 2);
@@ -73,7 +77,11 @@ mod tests {
         let stream = EventStream::new();
 
         stream.append(EventType::WorkflowStarted, "wf_123".to_string(), json!({}));
-        stream.append(EventType::WorkflowCompleted, "wf_123".to_string(), json!({}));
+        stream.append(
+            EventType::WorkflowCompleted,
+            "wf_123".to_string(),
+            json!({}),
+        );
 
         let all_events = stream.all();
         assert_eq!(all_events.len(), 2);
@@ -88,18 +96,12 @@ mod tests {
         let stream_clone = stream.clone();
         tokio::spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-            stream_clone.append(
-                EventType::WorkflowStarted,
-                "wf_test".to_string(),
-                json!({}),
-            );
+            stream_clone.append(EventType::WorkflowStarted, "wf_test".to_string(), json!({}));
         });
 
         // Receive the event
-        let event = tokio::time::timeout(
-            tokio::time::Duration::from_secs(1),
-            receiver.recv()
-        ).await;
+        let event =
+            tokio::time::timeout(tokio::time::Duration::from_secs(1), receiver.recv()).await;
 
         assert!(event.is_ok());
         let event = event.unwrap().unwrap();

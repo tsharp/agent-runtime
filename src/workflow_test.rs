@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{AgentConfig, Agent, Workflow, AgentStep, Runtime, WorkflowState};
+    use crate::{Agent, AgentConfig, AgentStep, Runtime, Workflow, WorkflowState};
     use serde_json::json;
 
     #[test]
@@ -8,7 +8,7 @@ mod tests {
         let agent = Agent::new(
             AgentConfig::builder("test_agent")
                 .system_prompt("Test")
-                .build()
+                .build(),
         );
 
         let workflow = Workflow::builder()
@@ -25,13 +25,13 @@ mod tests {
         let agent1 = Agent::new(
             AgentConfig::builder("agent1")
                 .system_prompt("First")
-                .build()
+                .build(),
         );
 
         let agent2 = Agent::new(
             AgentConfig::builder("agent2")
                 .system_prompt("Second")
-                .build()
+                .build(),
         );
 
         let workflow = Workflow::builder()
@@ -48,11 +48,14 @@ mod tests {
         let agent = Agent::new(
             AgentConfig::builder("test_agent")
                 .system_prompt("Test")
-                .build()
+                .build(),
         );
 
         let workflow = Workflow::builder()
-            .step(Box::new(AgentStep::from_agent(agent, "test_step".to_string())))
+            .step(Box::new(AgentStep::from_agent(
+                agent,
+                "test_step".to_string(),
+            )))
             .initial_input(json!({}))
             .build();
 
@@ -68,7 +71,7 @@ mod tests {
         let agent = Agent::new(
             AgentConfig::builder("test_agent")
                 .system_prompt("Test agent")
-                .build()
+                .build(),
         );
 
         let workflow = Workflow::builder()

@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::types::*;
-    use crate::{StepType, StepError, StepInput, StepOutput};
     use crate::step::{StepInputMetadata, StepOutputMetadata};
+    use crate::types::*;
+    use crate::{StepError, StepInput, StepOutput, StepType};
     use serde_json::json;
 
     #[test]

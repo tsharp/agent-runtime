@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 
-
 use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult, TextStream};
 
 const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
@@ -19,7 +18,7 @@ impl OpenAIClient {
     pub fn new(api_key: impl Into<String>) -> Self {
         Self::with_model(api_key, "gpt-4")
     }
-    
+
     /// Create a new OpenAI client with specific model
     pub fn with_model(api_key: impl Into<String>, model: impl Into<String>) -> Self {
         Self {
@@ -41,9 +40,10 @@ impl ChatClient for OpenAIClient {
             max_tokens: request.max_tokens,
             top_p: request.top_p,
         };
-        
+
         // Send request
-        let response = self.http_client
+        let response = self
+            .http_client
             .post(OPENAI_API_URL)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
@@ -51,7 +51,7 @@ impl ChatClient for OpenAIClient {
             .send()
             .await
             .map_err(|e| LlmError::NetworkError(e.to_string()))?;
-        
+
         // Check status
         let status = response.status();
         if !status.is_success() {
@@ -62,17 +62,19 @@ impl ChatClient for OpenAIClient {
                 _ => LlmError::ApiError(format!("Status {}: {}", status, error_text)),
             });
         }
-        
+
         // Parse response
         let openai_response: OpenAIChatResponse = response
             .json()
             .await
             .map_err(|e| LlmError::ParseError(e.to_string()))?;
-        
+
         // Extract first choice
-        let choice = openai_response.choices.first()
+        let choice = openai_response
+            .choices
+            .first()
             .ok_or_else(|| LlmError::ParseError("No choices in response".to_string()))?;
-        
+
         Ok(ChatResponse {
             content: choice.message.content.clone(),
             model: openai_response.model,
@@ -84,17 +86,19 @@ impl ChatClient for OpenAIClient {
             finish_reason: choice.finish_reason.clone(),
         })
     }
-    
+
     async fn chat_stream(&self, _request: ChatRequest) -> LlmResult<TextStream> {
         // Simple non-streaming fallback for OpenAI - full implementation would use SSE
         // For now, return error suggesting to use llama.cpp for streaming
-        Err(LlmError::ApiError("Streaming not yet implemented for OpenAI - use LlamaClient".to_string()))
+        Err(LlmError::ApiError(
+            "Streaming not yet implemented for OpenAI - use LlamaClient".to_string(),
+        ))
     }
-    
+
     fn model(&self) -> &str {
         &self.model
     }
-    
+
     fn provider(&self) -> &str {
         "openai"
     }
@@ -106,13 +110,13 @@ impl ChatClient for OpenAIClient {
 struct OpenAIChatRequest {
     model: String,
     messages: Vec<super::super::types::ChatMessage>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     temperature: Option<f32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<u32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
 }

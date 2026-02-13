@@ -16,17 +16,17 @@ impl Runtime {
             event_stream: EventStream::new(),
         }
     }
-    
+
     /// Get a reference to the event stream for subscribing to events
     pub fn event_stream(&self) -> &EventStream {
         &self.event_stream
     }
-    
+
     /// Execute a workflow and return the run with complete history
     pub async fn execute(&self, workflow: Workflow) -> WorkflowRun {
         self.execute_with_parent(workflow, None).await
     }
-    
+
     /// Execute a workflow with optional parent workflow context
     pub async fn execute_with_parent(
         &self,
@@ -34,7 +34,7 @@ impl Runtime {
         parent_workflow_id: Option<String>,
     ) -> WorkflowRun {
         let workflow_id = workflow.id.clone();
-        
+
         // Emit workflow started event
         self.event_stream.append_with_parent(
             EventType::WorkflowStarted,
@@ -45,9 +45,9 @@ impl Runtime {
                 "parent_workflow_id": parent_workflow_id,
             }),
         );
-        
+
         workflow.state = WorkflowState::Running;
-        
+
         let mut run = WorkflowRun {
             workflow_id: workflow_id.clone(),
             state: WorkflowState::Running,
@@ -55,15 +55,15 @@ impl Runtime {
             final_output: None,
             parent_workflow_id: parent_workflow_id.clone(),
         };
-        
+
         let mut current_data = workflow.initial_input.clone();
-        
+
         // Execute each step in sequence
         for (step_index, step) in workflow.steps.iter().enumerate() {
             let step_name = step.name().to_string();
             let step_type_enum = step.step_type();
             let step_type = format!("{:?}", step_type_enum);
-            
+
             // Emit step started event
             self.event_stream.append_with_parent(
                 EventType::WorkflowStepStarted,
@@ -75,7 +75,7 @@ impl Runtime {
                     "step_type": &step_type,
                 }),
             );
-            
+
             // Create step input
             let input = StepInput {
                 data: current_data.clone(),
@@ -89,14 +89,15 @@ impl Runtime {
                     workflow_id: workflow_id.clone(),
                 },
             };
-            
+
             // Execute step - special handling for SubWorkflowStep
             let result = if step_type_enum == StepType::SubWorkflow {
                 // Cast to SubWorkflowStep and execute with this runtime
                 // to share the event stream
                 let sub_step = unsafe {
                     // SAFETY: We just checked step_type is SubWorkflow
-                    let ptr = step.as_ref() as *const dyn crate::step::Step as *const SubWorkflowStep;
+                    let ptr =
+                        step.as_ref() as *const dyn crate::step::Step as *const SubWorkflowStep;
                     &*ptr
                 };
                 sub_step.execute_with_runtime(input.clone(), self).await
@@ -105,7 +106,7 @@ impl Runtime {
                 let ctx = crate::step::ExecutionContext::with_event_stream(&self.event_stream);
                 step.execute_with_context(input.clone(), ctx).await
             };
-            
+
             match result {
                 Ok(output) => {
                     // Emit step completed
@@ -119,7 +120,7 @@ impl Runtime {
                             "execution_time_ms": output.metadata.execution_time_ms,
                         }),
                     );
-                    
+
                     // Record step
                     run.steps.push(WorkflowStepRecord {
                         step_index,
@@ -129,7 +130,7 @@ impl Runtime {
                         output: Some(output.data.clone()),
                         execution_time_ms: Some(output.metadata.execution_time_ms),
                     });
-                    
+
                     // Pass output to next step
                     current_data = output.data;
                 }
@@ -144,7 +145,7 @@ impl Runtime {
                             "error": e.to_string(),
                         }),
                     );
-                    
+
                     // Emit workflow failed
                     self.event_stream.append_with_parent(
                         EventType::WorkflowFailed,
@@ -155,19 +156,19 @@ impl Runtime {
                             "failed_step": step_index,
                         }),
                     );
-                    
+
                     workflow.state = WorkflowState::Failed;
                     run.state = WorkflowState::Failed;
                     return run;
                 }
             }
         }
-        
+
         // Workflow completed successfully
         run.final_output = Some(current_data);
         run.state = WorkflowState::Completed;
         workflow.state = WorkflowState::Completed;
-        
+
         self.event_stream.append_with_parent(
             EventType::WorkflowCompleted,
             workflow_id.clone(),
@@ -176,10 +177,10 @@ impl Runtime {
                 "steps_completed": run.steps.len(),
             }),
         );
-        
+
         run
     }
-    
+
     /// Get events from a specific offset (for replay)
     pub fn events_from_offset(&self, offset: u64) -> Vec<Event> {
         self.event_stream.from_offset(offset)
@@ -191,4 +192,3 @@ impl Default for Runtime {
         Self::new()
     }
 }
-

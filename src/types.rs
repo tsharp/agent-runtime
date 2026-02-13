@@ -52,10 +52,10 @@ pub type AgentResult = Result<AgentOutput, AgentError>;
 pub enum AgentError {
     #[error("Tool execution failed: {0}")]
     ToolError(String),
-    
+
     #[error("Invalid input: {0}")]
     InvalidInput(String),
-    
+
     #[error("Execution failed: {0}")]
     ExecutionError(String),
 }
@@ -82,7 +82,7 @@ pub type ToolExecutionResult = Result<ToolResult, ToolError>;
 pub enum ToolError {
     #[error("Invalid parameters: {0}")]
     InvalidParameters(String),
-    
+
     #[error("Execution failed: {0}")]
     ExecutionFailed(String),
 }

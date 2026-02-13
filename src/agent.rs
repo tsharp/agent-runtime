@@ -1,10 +1,10 @@
+use crate::event::{EventStream, EventType};
+use crate::llm::{ChatClient, ChatMessage, ChatRequest};
+use crate::tool::Tool;
+use crate::types::{AgentError, AgentInput, AgentOutput, AgentOutputMetadata, AgentResult};
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use crate::tool::Tool;
-use crate::types::{AgentInput, AgentResult, AgentOutput, AgentOutputMetadata, AgentError};
-use crate::llm::{ChatClient, ChatMessage, ChatRequest};
-use crate::event::{EventStream, EventType};
-use futures::StreamExt;
 
 #[cfg(test)]
 #[path = "agent_test.rs"]
@@ -15,7 +15,7 @@ mod agent_test;
 pub struct AgentConfig {
     pub name: String,
     pub system_prompt: String,
-    
+
     #[serde(skip)]
     pub tools: Vec<Arc<dyn Tool>>,
 }
@@ -52,17 +52,17 @@ impl AgentConfigBuilder {
         self.system_prompt = prompt.into();
         self
     }
-    
+
     pub fn tool(mut self, tool: Arc<dyn Tool>) -> Self {
         self.tools.push(tool);
         self
     }
-    
+
     pub fn tools(mut self, tools: Vec<Arc<dyn Tool>>) -> Self {
         self.tools = tools;
         self
     }
-    
+
     pub fn build(self) -> AgentConfig {
         AgentConfig {
             name: self.name,
@@ -80,30 +80,30 @@ pub struct Agent {
 
 impl Agent {
     pub fn new(config: AgentConfig) -> Self {
-        Self { 
+        Self {
             config,
             llm_client: None,
         }
     }
-    
+
     pub fn with_llm_client(mut self, client: Arc<dyn ChatClient>) -> Self {
         self.llm_client = Some(client);
         self
     }
-    
+
     pub fn name(&self) -> &str {
         &self.config.name
     }
-    
+
     pub fn config(&self) -> &AgentConfig {
         &self.config
     }
-    
+
     /// Execute the agent with the given input
     pub async fn execute(&self, input: AgentInput) -> AgentResult {
         self.execute_with_events(input, None).await
     }
-    
+
     /// Execute the agent with event stream for observability
     pub async fn execute_with_events(
         &self,
@@ -111,19 +111,23 @@ impl Agent {
         event_stream: Option<&EventStream>,
     ) -> AgentResult {
         let start = std::time::Instant::now();
-        
+
         // Emit agent processing event
         if let Some(stream) = event_stream {
             stream.append(
                 EventType::AgentProcessing,
-                input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                input
+                    .metadata
+                    .previous_agent
+                    .clone()
+                    .unwrap_or_else(|| "workflow".to_string()),
                 serde_json::json!({
                     "agent": self.config.name,
                     "input": input.data,
                 }),
             );
         }
-        
+
         // If we have an LLM client, use it
         if let Some(client) = &self.llm_client {
             // Convert input to user message
@@ -132,44 +136,52 @@ impl Agent {
             } else {
                 serde_json::to_string_pretty(&input.data).unwrap_or_default()
             };
-            
+
             // Build messages with system prompt
             let mut messages = vec![ChatMessage::system(&self.config.system_prompt)];
             messages.push(ChatMessage::user(&user_message));
-            
+
             let request = ChatRequest::new(messages.clone())
                 .with_temperature(0.7)
                 .with_max_tokens(500);
-            
+
             // Emit LLM request started event
             if let Some(stream) = event_stream {
                 stream.append(
                     EventType::AgentLlmRequestStarted,
-                    input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                    input
+                        .metadata
+                        .previous_agent
+                        .clone()
+                        .unwrap_or_else(|| "workflow".to_string()),
                     serde_json::json!({
                         "agent": self.config.name,
                         "provider": client.provider(),
                     }),
                 );
             }
-            
+
             // Call LLM with streaming
             match client.chat_stream(request).await {
                 Ok(mut text_stream) => {
                     let mut full_response = String::new();
-                    
+
                     // Stream chunks and emit events
                     while let Some(chunk_result) = text_stream.next().await {
                         match chunk_result {
                             Ok(chunk) => {
                                 if !chunk.is_empty() {
                                     full_response.push_str(&chunk);
-                                    
+
                                     // Emit chunk event
                                     if let Some(stream) = event_stream {
                                         stream.append(
                                             EventType::AgentLlmStreamChunk,
-                                            input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                                            input
+                                                .metadata
+                                                .previous_agent
+                                                .clone()
+                                                .unwrap_or_else(|| "workflow".to_string()),
                                             serde_json::json!({
                                                 "agent": self.config.name,
                                                 "chunk": chunk,
@@ -183,45 +195,60 @@ impl Agent {
                                 if let Some(stream) = event_stream {
                                     stream.append(
                                         EventType::AgentLlmRequestFailed,
-                                        input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                                        input
+                                            .metadata
+                                            .previous_agent
+                                            .clone()
+                                            .unwrap_or_else(|| "workflow".to_string()),
                                         serde_json::json!({
                                             "agent": self.config.name,
                                             "error": e.to_string(),
                                         }),
                                     );
                                 }
-                                return Err(AgentError::ExecutionError(format!("LLM streaming failed: {}", e)));
+                                return Err(AgentError::ExecutionError(format!(
+                                    "LLM streaming failed: {}",
+                                    e
+                                )));
                             }
                         }
                     }
-                    
+
                     // Emit LLM request completed event
                     if let Some(stream) = event_stream {
                         stream.append(
                             EventType::AgentLlmRequestCompleted,
-                            input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                            input
+                                .metadata
+                                .previous_agent
+                                .clone()
+                                .unwrap_or_else(|| "workflow".to_string()),
                             serde_json::json!({
                                 "agent": self.config.name,
                             }),
                         );
                     }
-                    
+
                     let output_data = serde_json::json!({
                         "response": full_response,
                     });
-                    
+
                     // Emit agent completed event
                     if let Some(stream) = event_stream {
                         stream.append(
                             EventType::AgentCompleted,
-                            input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                            input
+                                .metadata
+                                .previous_agent
+                                .clone()
+                                .unwrap_or_else(|| "workflow".to_string()),
                             serde_json::json!({
                                 "agent": self.config.name,
                                 "execution_time_ms": start.elapsed().as_millis() as u64,
                             }),
                         );
                     }
-                    
+
                     Ok(AgentOutput {
                         data: output_data,
                         metadata: AgentOutputMetadata {
@@ -236,27 +263,38 @@ impl Agent {
                     if let Some(stream) = event_stream {
                         stream.append(
                             EventType::AgentLlmRequestFailed,
-                            input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                            input
+                                .metadata
+                                .previous_agent
+                                .clone()
+                                .unwrap_or_else(|| "workflow".to_string()),
                             serde_json::json!({
                                 "agent": self.config.name,
                                 "error": e.to_string(),
                             }),
                         );
                     }
-                    
+
                     // Emit agent failed event
                     if let Some(stream) = event_stream {
                         stream.append(
                             EventType::AgentFailed,
-                            input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                            input
+                                .metadata
+                                .previous_agent
+                                .clone()
+                                .unwrap_or_else(|| "workflow".to_string()),
                             serde_json::json!({
                                 "agent": self.config.name,
                                 "error": e.to_string(),
                             }),
                         );
                     }
-                    
-                    Err(AgentError::ExecutionError(format!("LLM call failed: {}", e)))
+
+                    Err(AgentError::ExecutionError(format!(
+                        "LLM call failed: {}",
+                        e
+                    )))
                 }
             }
         } else {
@@ -267,11 +305,15 @@ impl Agent {
                 "system_prompt": self.config.system_prompt,
                 "note": "Mock execution - no LLM client configured"
             });
-            
+
             if let Some(stream) = event_stream {
                 stream.append(
                     EventType::AgentCompleted,
-                    input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                    input
+                        .metadata
+                        .previous_agent
+                        .clone()
+                        .unwrap_or_else(|| "workflow".to_string()),
                     serde_json::json!({
                         "agent": self.config.name,
                         "execution_time_ms": start.elapsed().as_millis() as u64,
@@ -279,7 +321,7 @@ impl Agent {
                     }),
                 );
             }
-            
+
             Ok(AgentOutput {
                 data: output_data,
                 metadata: AgentOutputMetadata {

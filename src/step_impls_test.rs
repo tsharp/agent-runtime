@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::step_impls::{AgentStep, TransformStep};
-    use crate::{AgentConfig, Agent, StepInput, Step};
     use crate::step::StepInputMetadata;
+    use crate::step_impls::{AgentStep, TransformStep};
+    use crate::{Agent, AgentConfig, Step, StepInput};
     use serde_json::json;
 
     #[tokio::test]
@@ -64,9 +64,7 @@ mod tests {
     #[tokio::test]
     async fn test_transform_step_complex() {
         let transform = TransformStep::new("extract_field".to_string(), |data| {
-            data.get("message")
-                .cloned()
-                .unwrap_or(json!("default"))
+            data.get("message").cloned().unwrap_or(json!("default"))
         });
 
         let input = StepInput {
@@ -89,9 +87,7 @@ mod tests {
     fn test_step_type() {
         use crate::StepType;
 
-        let config = AgentConfig::builder("test")
-            .system_prompt("Test")
-            .build();
+        let config = AgentConfig::builder("test").system_prompt("Test").build();
 
         let agent = Agent::new(config);
         let step = AgentStep::from_agent(agent, "step".to_string());
