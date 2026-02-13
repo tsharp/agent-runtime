@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .ok_or_else(|| ToolError::InvalidParameters("'b' must be a number".into()))?;
             Ok(ToolResult {
                 output: json!({ "result": a + b }),
-                duration_ms: start.elapsed().as_millis() as u64,
+                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
             })
         },
     ));
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .ok_or_else(|| ToolError::InvalidParameters("'b' must be a number".into()))?;
             Ok(ToolResult {
                 output: json!({ "result": a * b }),
-                duration_ms: start.elapsed().as_millis() as u64,
+                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
             })
         },
     ));
@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             
             Ok(ToolResult {
                 output: json!({ "weather": weather, "city": city }),
-                duration_ms: start.elapsed().as_millis() as u64,
+                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
             })
         },
     ));

@@ -71,7 +71,8 @@ pub struct ToolCall {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolResult {
     pub output: JsonValue,
-    pub duration_ms: u64,
+    /// Duration in milliseconds with microsecond precision (e.g., 0.123 ms)
+    pub duration_ms: f64,
 }
 
 /// Result type for tool execution

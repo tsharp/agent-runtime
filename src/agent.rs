@@ -470,7 +470,7 @@ impl Agent {
                             "tool_call_id": tool_call.id,
                             "arguments": params,
                             "result": result.output,
-                            "duration_ms": result.duration_ms,
+                            "duration_ms": (result.duration_ms * 1000.0).round() / 1000.0,
                         }),
                     );
                 }
@@ -490,7 +490,7 @@ impl Agent {
                             "tool_call_id": tool_call.id,
                             "arguments": params,
                             "error": error_msg,
-                            "duration_ms": start_time.elapsed().as_millis() as u64,
+                            "duration_ms": start_time.elapsed().as_secs_f64() * 1000.0,
                         }),
                     );
                 }

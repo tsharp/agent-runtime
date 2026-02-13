@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(ToolResult {
                 output: json!({ "result": result }),
-                duration_ms: start.elapsed().as_millis() as u64,
+                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
             })
         },
     ));
@@ -67,7 +67,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(ToolResult {
                 output: json!({ "result": result }),
-                duration_ms: start.elapsed().as_millis() as u64,
+                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
             })
         },
     ));

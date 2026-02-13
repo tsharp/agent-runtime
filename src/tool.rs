@@ -233,7 +233,7 @@ impl Tool for EchoTool {
 
         Ok(ToolResult {
             output,
-            duration_ms: start.elapsed().as_millis() as u64,
+            duration_ms: start.elapsed().as_secs_f64() * 1000.0,
         })
     }
 }
@@ -304,7 +304,7 @@ impl Tool for CalculatorTool {
 
         Ok(ToolResult {
             output: serde_json::json!({ "result": result }),
-            duration_ms: start.elapsed().as_millis() as u64,
+            duration_ms: start.elapsed().as_secs_f64() * 1000.0,
         })
     }
 }
