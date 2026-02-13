@@ -69,15 +69,9 @@ jobs:
           Write-Host "Publishing version: $($result.Version)"
           ./scripts/Get-Version.ps1 -UpdateCargo
 
-      - name: Publish model-context-protocol-macros
-        run: cargo publish -p model-context-protocol-macros --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
+      - name: Publish agent-runtime
+        run: cargo publish -p agent-runtime --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
         continue-on-error: true
-
-      - name: Wait for crates.io index
-        run: sleep 30
-
-      - name: Publish model-context-protocol
-        run: cargo publish -p model-context-protocol --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
