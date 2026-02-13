@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use futures::stream::Stream;
+use std::pin::Pin;
 
 pub mod provider;
 pub mod types;
@@ -8,6 +10,9 @@ pub use types::{ChatMessage, ChatRequest, ChatResponse, Role};
 
 /// Result type for LLM operations
 pub type LlmResult<T> = Result<T, LlmError>;
+
+/// Stream of text chunks from LLM
+pub type TextStream = Pin<Box<dyn Stream<Item = LlmResult<String>> + Send>>;
 
 /// Errors that can occur during LLM operations
 #[derive(Debug, thiserror::Error)]
@@ -36,6 +41,9 @@ pub enum LlmError {
 pub trait ChatClient: Send + Sync {
     /// Send a chat completion request
     async fn chat(&self, request: ChatRequest) -> LlmResult<ChatResponse>;
+    
+    /// Stream a chat completion request (yields text chunks as they arrive)
+    async fn chat_stream(&self, request: ChatRequest) -> LlmResult<TextStream>;
     
     /// Get the model name this client uses
     fn model(&self) -> &str;

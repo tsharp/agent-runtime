@@ -21,6 +21,12 @@ pub enum EventType {
     AgentCompleted,
     AgentFailed,
     
+    // LLM events
+    AgentLlmRequestStarted,
+    AgentLlmStreamChunk,
+    AgentLlmRequestCompleted,
+    AgentLlmRequestFailed,
+    
     // Tool events
     ToolCallStarted,
     ToolCallCompleted,

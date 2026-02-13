@@ -17,6 +17,11 @@ impl Runtime {
         }
     }
     
+    /// Get a reference to the event stream for subscribing to events
+    pub fn event_stream(&self) -> &EventStream {
+        &self.event_stream
+    }
+    
     /// Execute a workflow and return the run with complete history
     pub async fn execute(&self, workflow: Workflow) -> WorkflowRun {
         self.execute_with_parent(workflow, None).await
@@ -96,7 +101,9 @@ impl Runtime {
                 };
                 sub_step.execute_with_runtime(input.clone(), self).await
             } else {
-                step.execute(input.clone()).await
+                // Execute with event stream context
+                let ctx = crate::step::ExecutionContext::with_event_stream(&self.event_stream);
+                step.execute_with_context(input.clone(), ctx).await
             };
             
             match result {
@@ -171,11 +178,6 @@ impl Runtime {
         );
         
         run
-    }
-    
-    /// Get the event stream for observability
-    pub fn event_stream(&self) -> &EventStream {
-        &self.event_stream
     }
     
     /// Get events from a specific offset (for replay)

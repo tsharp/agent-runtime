@@ -1,8 +1,9 @@
 use async_trait::async_trait;
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
+use futures::stream::StreamExt;
 
-use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult};
+use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult, TextStream};
 
 /// Llama.cpp server client (local or remote)
 /// 
@@ -115,6 +116,73 @@ impl ChatClient for LlamaClient {
             }),
             finish_reason: choice.finish_reason.clone(),
         })
+    }
+    
+    async fn chat_stream(&self, request: ChatRequest) -> LlmResult<TextStream> {
+        let url = format!("{}/v1/chat/completions", self.base_url);
+        
+        // Build llama.cpp-compatible request with streaming enabled
+        let llama_request = LlamaChatRequest {
+            model: self.model.clone(),
+            messages: request.messages,
+            temperature: request.temperature,
+            max_tokens: request.max_tokens,
+            top_p: request.top_p,
+        };
+        
+        // Send request with streaming
+        let response = self.http_client
+            .post(&url)
+            .header("Content-Type", "application/json")
+            .header("Accept", "text/event-stream")
+            .json(&serde_json::json!({
+                "model": llama_request.model,
+                "messages": llama_request.messages,
+                "temperature": llama_request.temperature,
+                "max_tokens": llama_request.max_tokens,
+                "top_p": llama_request.top_p,
+                "stream": true,
+            }))
+            .send()
+            .await
+            .map_err(|e| LlmError::NetworkError(e.to_string()))?;
+        
+        if !response.status().is_success() {
+            let status = response.status();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(LlmError::ApiError(format!("HTTP {}: {}", status, error_text)));
+        }
+        
+        // Convert byte stream to text chunks
+        let stream = response.bytes_stream();
+        let text_stream = stream.map(|chunk_result| {
+            chunk_result
+                .map_err(|e| LlmError::NetworkError(e.to_string()))
+                .and_then(|bytes| {
+                    // Parse SSE format: "data: {...}\n\n"
+                    let text = String::from_utf8_lossy(&bytes);
+                    for line in text.lines() {
+                        if let Some(json_str) = line.strip_prefix("data: ") {
+                            if json_str.trim() == "[DONE]" {
+                                continue;
+                            }
+                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
+                                if let Some(delta) = parsed.get("choices")
+                                    .and_then(|c| c.get(0))
+                                    .and_then(|c| c.get("delta"))
+                                    .and_then(|d| d.get("content"))
+                                    .and_then(|c| c.as_str())
+                                {
+                                    return Ok(delta.to_string());
+                                }
+                            }
+                        }
+                    }
+                    Ok(String::new())
+                })
+        });
+        
+        Ok(Box::pin(text_stream))
     }
     
     fn model(&self) -> &str {

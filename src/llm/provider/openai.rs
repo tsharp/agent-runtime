@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 
-use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult};
+
+use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult, TextStream};
 
 const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
 
@@ -82,6 +83,12 @@ impl ChatClient for OpenAIClient {
             }),
             finish_reason: choice.finish_reason.clone(),
         })
+    }
+    
+    async fn chat_stream(&self, _request: ChatRequest) -> LlmResult<TextStream> {
+        // Simple non-streaming fallback for OpenAI - full implementation would use SSE
+        // For now, return error suggesting to use llama.cpp for streaming
+        Err(LlmError::ApiError("Streaming not yet implemented for OpenAI - use LlamaClient".to_string()))
     }
     
     fn model(&self) -> &str {

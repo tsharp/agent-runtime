@@ -16,6 +16,6 @@ pub use agent::{Agent, AgentConfig};
 pub use workflow::{Workflow, WorkflowBuilder};
 pub use runtime::Runtime;
 pub use event::{Event, EventType, EventStream};
-pub use step::{Step, StepInput, StepOutput, StepResult, StepType, StepError};
+pub use step::{Step, StepInput, StepOutput, StepResult, StepType, StepError, ExecutionContext};
 pub use step_impls::{AgentStep, TransformStep, ConditionalStep, SubWorkflowStep};
 pub use llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};

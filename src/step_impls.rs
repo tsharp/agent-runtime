@@ -30,7 +30,7 @@ impl AgentStep {
 
 #[async_trait]
 impl Step for AgentStep {
-    async fn execute(&self, input: StepInput) -> StepResult {
+    async fn execute_with_context(&self, input: StepInput, ctx: crate::step::ExecutionContext<'_>) -> StepResult {
         let start = std::time::Instant::now();
         
         // Convert StepInput to AgentInput
@@ -42,8 +42,8 @@ impl Step for AgentStep {
             },
         };
         
-        // Execute agent
-        let result = self.agent.execute(agent_input).await
+        // Execute agent with event stream
+        let result = self.agent.execute_with_events(agent_input, ctx.event_stream).await
             .map_err(|e| StepError::AgentError(e.to_string()))?;
         
         Ok(StepOutput {
@@ -89,6 +89,11 @@ impl TransformStep {
 
 #[async_trait]
 impl Step for TransformStep {
+    async fn execute_with_context(&self, input: StepInput, _ctx: crate::step::ExecutionContext<'_>) -> StepResult {
+        // Use the same logic as execute() - transforms don't need events yet
+        self.execute(input).await
+    }
+    
     async fn execute(&self, input: StepInput) -> StepResult {
         let start = std::time::Instant::now();
         
@@ -142,6 +147,28 @@ impl ConditionalStep {
 
 #[async_trait]
 impl Step for ConditionalStep {
+    async fn execute_with_context(&self, input: StepInput, ctx: crate::step::ExecutionContext<'_>) -> StepResult {
+        let start = std::time::Instant::now();
+        
+        let condition_result = (self.condition_fn)(&input.data);
+        
+        let chosen_step = if condition_result {
+            &self.true_step
+        } else {
+            &self.false_step
+        };
+        
+        // Execute the chosen branch with context
+        let mut result = chosen_step.execute_with_context(input, ctx).await?;
+        
+        // Update metadata to reflect this conditional step
+        result.metadata.step_name = self.name.clone();
+        result.metadata.step_type = StepType::Conditional;
+        result.metadata.execution_time_ms = start.elapsed().as_millis() as u64;
+        
+        Ok(result)
+    }
+    
     async fn execute(&self, input: StepInput) -> StepResult {
         let start = std::time::Instant::now();
         
@@ -236,6 +263,13 @@ impl SubWorkflowStep {
 
 #[async_trait]
 impl Step for SubWorkflowStep {
+    async fn execute_with_context(&self, input: StepInput, _ctx: crate::step::ExecutionContext<'_>) -> StepResult {
+        // This creates a new runtime - won't share events with parent
+        // Use execute_with_runtime() from the parent runtime instead
+        let runtime = Runtime::new();
+        self.execute_with_runtime(input, &runtime).await
+    }
+    
     async fn execute(&self, input: StepInput) -> StepResult {
         // This creates a new runtime - won't share events with parent
         // Use execute_with_runtime() from the parent runtime instead

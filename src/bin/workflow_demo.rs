@@ -1,8 +1,10 @@
 use agent_runtime::{
     AgentConfig, Agent, Workflow, AgentStep, Runtime,
     llm::{LlamaClient, ChatClient},
+    EventType,
 };
 use std::sync::Arc;
+use tokio::task;
 
 #[tokio::main]
 async fn main() {
@@ -50,28 +52,81 @@ async fn main() {
     println!("Workflow Structure:");
     println!("{}\n", workflow.to_mermaid());
     
-    // Create runtime and execute
+    // Create runtime
     let runtime = Runtime::new();
     
+    // Subscribe to events in a separate task
+    let mut event_receiver = runtime.event_stream().subscribe();
+    let event_task = task::spawn(async move {
+        println!("📡 Streaming Agent Responses\n");
+        println!("{}", "=".repeat(60));
+        
+        let _current_agent: Option<String> = None;
+        
+        while let Ok(event) = event_receiver.recv().await {
+            match event.event_type {
+                EventType::AgentProcessing => {
+                    if let Some(agent) = event.data.get("agent").and_then(|v| v.as_str()) {
+                        println!("\n🤖 {} >", agent);
+                        print!("   ");
+                        std::io::Write::flush(&mut std::io::stdout()).ok();
+                    }
+                }
+                EventType::AgentLlmStreamChunk => {
+                    if let Some(chunk) = event.data.get("chunk").and_then(|v| v.as_str()) {
+                        print!("{}", chunk);
+                        std::io::Write::flush(&mut std::io::stdout()).ok();
+                    }
+                }
+                EventType::AgentLlmRequestCompleted => {
+                    println!();  // New line after streaming completes
+                }
+                EventType::AgentLlmRequestFailed => {
+                    if let Some(_agent) = event.data.get("agent").and_then(|v| v.as_str()) {
+                        if let Some(error) = event.data.get("error").and_then(|v| v.as_str()) {
+                            println!("\n   ❌ Error: {}", error);
+                        }
+                    }
+                }
+                EventType::WorkflowCompleted => {
+                    println!("\n{}", "=".repeat(60));
+                    println!("✅ Workflow Completed");
+                    break;
+                }
+                EventType::WorkflowFailed => {
+                    println!("\n{}", "=".repeat(60));
+                    println!("❌ Workflow Failed");
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+    
     // Execute workflow
-    println!("▶ Starting workflow execution...\n");
-    println!("{}", "=".repeat(60));
+    println!("\n▶ Starting workflow execution...\n");
     
     let result = runtime.execute(workflow).await;
     
+    // Wait for event task to finish
+    let _ = event_task.await;
+    
+    // Show final results
     println!("\n{}", "=".repeat(60));
-    println!("\n✅ Workflow execution complete!\n");
+    println!("\n📊 Final Results\n");
     
     if let Some(output) = &result.final_output {
-        println!("Final Output:");
+        println!("Output:");
         println!("{}\n", serde_json::to_string_pretty(&output).unwrap());
     }
     
     println!("Steps executed: {}", result.steps.len());
     for (i, step) in result.steps.iter().enumerate() {
-        println!("  Step {}: {} ({})", i+1, step.step_name, step.step_type);
-        if let Some(time) = step.execution_time_ms {
-            println!("    Execution time: {}ms", time);
-        }
+        println!("  {}. {} ({}) - {}ms", 
+            i+1, 
+            step.step_name, 
+            step.step_type,
+            step.execution_time_ms.unwrap_or(0)
+        );
     }
 }

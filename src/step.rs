@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use crate::types::JsonValue;
+use crate::event::EventStream;
 
 /// Types of steps that can be in a workflow
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -61,11 +62,31 @@ pub enum StepError {
     StepNotFound(String),
 }
 
+/// Execution context passed to steps
+pub struct ExecutionContext<'a> {
+    pub event_stream: Option<&'a EventStream>,
+}
+
+impl<'a> ExecutionContext<'a> {
+    pub fn new() -> Self {
+        Self { event_stream: None }
+    }
+    
+    pub fn with_event_stream(event_stream: &'a EventStream) -> Self {
+        Self { event_stream: Some(event_stream) }
+    }
+}
+
 /// Step trait - all workflow steps must implement this
 #[async_trait]
 pub trait Step: Send + Sync {
     /// Execute the step with the given input
-    async fn execute(&self, input: StepInput) -> StepResult;
+    async fn execute(&self, input: StepInput) -> StepResult {
+        self.execute_with_context(input, ExecutionContext::new()).await
+    }
+    
+    /// Execute with execution context (for event streaming, etc.)
+    async fn execute_with_context(&self, input: StepInput, ctx: ExecutionContext<'_>) -> StepResult;
     
     /// Unique name for this step
     fn name(&self) -> &str;
