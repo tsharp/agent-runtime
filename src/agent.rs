@@ -143,7 +143,7 @@ impl Agent {
 
             let request = ChatRequest::new(messages.clone())
                 .with_temperature(0.7)
-                .with_max_tokens(500);
+                .with_max_tokens(8192);
 
             // Emit LLM request started event
             if let Some(stream) = event_stream {
@@ -229,8 +229,14 @@ impl Agent {
                         );
                     }
 
+                    // Estimate token count for streaming responses
+                    let response_text = full_response.trim();
+                    let estimated_tokens = (response_text.len() as f32 / 4.0).ceil() as u32;
+
                     let output_data = serde_json::json!({
-                        "response": full_response,
+                        "response": response_text,
+                        "content_type": "text/plain",
+                        "token_count": estimated_tokens,
                     });
 
                     // Emit agent completed event

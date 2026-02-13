@@ -2,6 +2,7 @@ use agent_runtime::{
     llm::{ChatClient, LlamaClient},
     Agent, AgentConfig, AgentStep, EventType, Runtime, Workflow,
 };
+use std::fs;
 use std::sync::Arc;
 use tokio::task;
 
@@ -82,7 +83,6 @@ async fn main() {
                 EventType::AgentProcessing => {
                     if let Some(agent) = event.data.get("agent").and_then(|v| v.as_str()) {
                         println!("\n🤖 {} >", agent);
-                        print!("   ");
                         std::io::Write::flush(&mut std::io::stdout()).ok();
                     }
                 }
@@ -131,8 +131,20 @@ async fn main() {
 
     if let Some(output) = &result.final_output {
         println!("Output:");
-        println!("{}\n", serde_json::to_string_pretty(&output).unwrap());
+        if let Some(response) = output.get("response") {
+            match response {
+                serde_json::Value::String(s) => println!("{}\n", s),
+                _ => println!("{}\n", serde_json::to_string_pretty(response).unwrap()),
+            }
+        } else {
+            println!("{}\n", serde_json::to_string_pretty(output).unwrap());
+        }
     }
+
+    // Write result to file
+    let result_json = serde_json::to_string_pretty(&result).unwrap();
+    fs::write("workflow_result.json", result_json).expect("Failed to write result file");
+    println!("💾 Result written to workflow_result.json\n");
 
     println!("Steps executed: {}", result.steps.len());
     for (i, step) in result.steps.iter().enumerate() {
