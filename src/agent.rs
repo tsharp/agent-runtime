@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use crate::tool::Tool;
-use crate::types::{AgentInput, AgentResult, AgentOutput, AgentOutputMetadata};
+use crate::types::{AgentInput, AgentResult, AgentOutput, AgentOutputMetadata, AgentError};
+use crate::llm::{ChatClient, ChatMessage, ChatRequest};
 
 /// Agent configuration
 #[derive(Clone, Serialize, Deserialize)]
@@ -68,11 +69,20 @@ impl AgentConfigBuilder {
 /// Agent execution unit
 pub struct Agent {
     config: AgentConfig,
+    llm_client: Option<Arc<dyn ChatClient>>,
 }
 
 impl Agent {
     pub fn new(config: AgentConfig) -> Self {
-        Self { config }
+        Self { 
+            config,
+            llm_client: None,
+        }
+    }
+    
+    pub fn with_llm_client(mut self, client: Arc<dyn ChatClient>) -> Self {
+        self.llm_client = Some(client);
+        self
     }
     
     pub fn name(&self) -> &str {
@@ -84,31 +94,64 @@ impl Agent {
     }
     
     /// Execute the agent with the given input
-    /// Note: This is a simplified mock implementation
-    /// Real implementation would call LLM APIs
     pub async fn execute(&self, input: AgentInput) -> AgentResult {
         let start = std::time::Instant::now();
         
-        // Mock execution: for now, just pass through the input
-        // In real implementation, this would:
-        // 1. Build context with system prompt + input
-        // 2. Call LLM API
-        // 3. Handle tool calls
-        // 4. Return final output
-        
-        let output_data = serde_json::json!({
-            "agent": self.config.name,
-            "processed": input.data,
-            "system_prompt": self.config.system_prompt,
-        });
-        
-        Ok(AgentOutput {
-            data: output_data,
-            metadata: AgentOutputMetadata {
-                agent_name: self.config.name.clone(),
-                execution_time_ms: start.elapsed().as_millis() as u64,
-                tool_calls_count: 0,
-            },
-        })
+        // If we have an LLM client, use it
+        if let Some(client) = &self.llm_client {
+            // Convert input to user message
+            let user_message = if let Some(s) = input.data.as_str() {
+                s.to_string()
+            } else {
+                serde_json::to_string_pretty(&input.data).unwrap_or_default()
+            };
+            
+            // Build messages with system prompt
+            let mut messages = vec![ChatMessage::system(&self.config.system_prompt)];
+            messages.push(ChatMessage::user(user_message));
+            
+            let request = ChatRequest::new(messages)
+                .with_temperature(0.7)
+                .with_max_tokens(500);
+            
+            // Call LLM
+            match client.chat(request).await {
+                Ok(response) => {
+                    let output_data = serde_json::json!({
+                        "response": response.content,
+                        "model": response.model,
+                    });
+                    
+                    Ok(AgentOutput {
+                        data: output_data,
+                        metadata: AgentOutputMetadata {
+                            agent_name: self.config.name.clone(),
+                            execution_time_ms: start.elapsed().as_millis() as u64,
+                            tool_calls_count: 0,
+                        },
+                    })
+                }
+                Err(e) => {
+                    Err(AgentError::ExecutionError(format!("LLM call failed: {}", e)))
+                }
+            }
+        } else {
+            // Mock execution fallback
+            let output_data = serde_json::json!({
+                "agent": self.config.name,
+                "processed": input.data,
+                "system_prompt": self.config.system_prompt,
+                "note": "Mock execution - no LLM client configured"
+            });
+            
+            Ok(AgentOutput {
+                data: output_data,
+                metadata: AgentOutputMetadata {
+                    agent_name: self.config.name.clone(),
+                    execution_time_ms: start.elapsed().as_millis() as u64,
+                    tool_calls_count: 0,
+                },
+            })
+        }
     }
 }

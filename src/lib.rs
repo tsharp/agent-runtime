@@ -7,6 +7,7 @@ pub mod runtime;
 pub mod event;
 pub mod step;
 pub mod step_impls;
+pub mod llm;
 
 // Re-exports for convenience
 pub use types::*;
@@ -17,3 +18,4 @@ pub use runtime::Runtime;
 pub use event::{Event, EventType, EventStream};
 pub use step::{Step, StepInput, StepOutput, StepResult, StepType, StepError};
 pub use step_impls::{AgentStep, TransformStep, ConditionalStep, SubWorkflowStep};
+pub use llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};

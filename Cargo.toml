@@ -75,6 +75,18 @@ path = "src/bin/mermaid_viz.rs"
 name = "complex_viz"
 path = "src/bin/complex_viz.rs"
 
+[[bin]]
+name = "workflow_demo"
+path = "src/bin/workflow_demo.rs"
+
+[[bin]]
+name = "llm_demo"
+path = "src/bin/llm_demo.rs"
+
+[[bin]]
+name = "llama_demo"
+path = "src/bin/llama_demo.rs"
+
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3.8"
