@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[cfg(test)]
+#[path = "types_test.rs"]
+mod types_test;
+
 /// Unique identifier for workflows
 pub type WorkflowId = String;
 

@@ -1,8 +1,8 @@
 use crate::{
-    agent::Agent,
-    event::{EventStream, EventType},
-    types::{AgentInput, AgentInputMetadata},
-    workflow::{Workflow, WorkflowRun, WorkflowState, WorkflowStep},
+    event::{Event, EventStream, EventType},
+    step::{StepInput, StepInputMetadata, StepType},
+    step_impls::SubWorkflowStep,
+    workflow::{Workflow, WorkflowRun, WorkflowState, WorkflowStepRecord},
 };
 
 /// Runtime for executing workflows
@@ -17,16 +17,32 @@ impl Runtime {
         }
     }
     
+    /// Get a reference to the event stream for subscribing to events
+    pub fn event_stream(&self) -> &EventStream {
+        &self.event_stream
+    }
+    
     /// Execute a workflow and return the run with complete history
-    pub async fn execute(&mut self, mut workflow: Workflow) -> WorkflowRun {
+    pub async fn execute(&self, workflow: Workflow) -> WorkflowRun {
+        self.execute_with_parent(workflow, None).await
+    }
+    
+    /// Execute a workflow with optional parent workflow context
+    pub async fn execute_with_parent(
+        &self,
+        mut workflow: Workflow,
+        parent_workflow_id: Option<String>,
+    ) -> WorkflowRun {
         let workflow_id = workflow.id.clone();
         
         // Emit workflow started event
-        self.event_stream.append(
+        self.event_stream.append_with_parent(
             EventType::WorkflowStarted,
             workflow_id.clone(),
+            parent_workflow_id.clone(),
             serde_json::json!({
-                "agent_count": workflow.agents.len(),
+                "step_count": workflow.steps.len(),
+                "parent_workflow_id": parent_workflow_id,
             }),
         );
         
@@ -37,100 +53,103 @@ impl Runtime {
             state: WorkflowState::Running,
             steps: Vec::new(),
             final_output: None,
+            parent_workflow_id: parent_workflow_id.clone(),
         };
         
         let mut current_data = workflow.initial_input.clone();
         
-        // Execute each agent in sequence
-        for (step_index, agent_config) in workflow.agents.iter().enumerate() {
-            let agent = Agent::new(agent_config.clone());
+        // Execute each step in sequence
+        for (step_index, step) in workflow.steps.iter().enumerate() {
+            let step_name = step.name().to_string();
+            let step_type_enum = step.step_type();
+            let step_type = format!("{:?}", step_type_enum);
             
             // Emit step started event
-            self.event_stream.append(
+            self.event_stream.append_with_parent(
                 EventType::WorkflowStepStarted,
                 workflow_id.clone(),
+                parent_workflow_id.clone(),
                 serde_json::json!({
                     "step_index": step_index,
-                    "agent_name": agent.name(),
+                    "step_name": &step_name,
+                    "step_type": &step_type,
                 }),
             );
             
-            // Create agent input
-            let input = AgentInput {
+            // Create step input
+            let input = StepInput {
                 data: current_data.clone(),
-                metadata: AgentInputMetadata {
+                metadata: StepInputMetadata {
                     step_index,
-                    previous_agent: if step_index > 0 {
-                        Some(workflow.agents[step_index - 1].name.clone())
+                    previous_step: if step_index > 0 {
+                        Some(workflow.steps[step_index - 1].name().to_string())
                     } else {
                         None
                     },
+                    workflow_id: workflow_id.clone(),
                 },
             };
             
-            // Emit agent initialized
-            self.event_stream.append(
-                EventType::AgentInitialized,
-                workflow_id.clone(),
-                serde_json::json!({
-                    "agent_name": agent.name(),
-                    "step_index": step_index,
-                }),
-            );
+            // Execute step - special handling for SubWorkflowStep
+            let result = if step_type_enum == StepType::SubWorkflow {
+                // Cast to SubWorkflowStep and execute with this runtime
+                // to share the event stream
+                let sub_step = unsafe {
+                    // SAFETY: We just checked step_type is SubWorkflow
+                    let ptr = step.as_ref() as *const dyn crate::step::Step as *const SubWorkflowStep;
+                    &*ptr
+                };
+                sub_step.execute_with_runtime(input.clone(), self).await
+            } else {
+                // Execute with event stream context
+                let ctx = crate::step::ExecutionContext::with_event_stream(&self.event_stream);
+                step.execute_with_context(input.clone(), ctx).await
+            };
             
-            // Execute agent
-            let step_start = std::time::Instant::now();
-            match agent.execute(input.clone()).await {
+            match result {
                 Ok(output) => {
-                    let execution_time = step_start.elapsed().as_millis() as u64;
-                    
-                    // Emit agent completed
-                    self.event_stream.append(
-                        EventType::AgentCompleted,
+                    // Emit step completed
+                    self.event_stream.append_with_parent(
+                        EventType::WorkflowStepCompleted,
                         workflow_id.clone(),
+                        parent_workflow_id.clone(),
                         serde_json::json!({
-                            "agent_name": agent.name(),
-                            "execution_time_ms": execution_time,
+                            "step_index": step_index,
+                            "step_name": &step_name,
+                            "execution_time_ms": output.metadata.execution_time_ms,
                         }),
                     );
                     
                     // Record step
-                    run.steps.push(WorkflowStep {
+                    run.steps.push(WorkflowStepRecord {
                         step_index,
-                        agent_name: agent.name().to_string(),
+                        step_name: step_name.clone(),
+                        step_type: step_type.clone(),
                         input: input.data,
                         output: Some(output.data.clone()),
-                        execution_time_ms: Some(execution_time),
+                        execution_time_ms: Some(output.metadata.execution_time_ms),
                     });
                     
-                    // Pass output to next agent
+                    // Pass output to next step
                     current_data = output.data;
-                    
-                    // Emit step completed
-                    self.event_stream.append(
-                        EventType::WorkflowStepCompleted,
-                        workflow_id.clone(),
-                        serde_json::json!({
-                            "step_index": step_index,
-                            "agent_name": agent.name(),
-                        }),
-                    );
                 }
                 Err(e) => {
-                    // Emit agent failed
-                    self.event_stream.append(
-                        EventType::AgentFailed,
+                    // Emit step failed
+                    self.event_stream.append_with_parent(
+                        EventType::AgentFailed, // TODO: Add StepFailed event type
                         workflow_id.clone(),
+                        parent_workflow_id.clone(),
                         serde_json::json!({
-                            "agent_name": agent.name(),
+                            "step_name": &step_name,
                             "error": e.to_string(),
                         }),
                     );
                     
                     // Emit workflow failed
-                    self.event_stream.append(
+                    self.event_stream.append_with_parent(
                         EventType::WorkflowFailed,
                         workflow_id.clone(),
+                        parent_workflow_id.clone(),
                         serde_json::json!({
                             "error": e.to_string(),
                             "failed_step": step_index,
@@ -149,9 +168,10 @@ impl Runtime {
         run.state = WorkflowState::Completed;
         workflow.state = WorkflowState::Completed;
         
-        self.event_stream.append(
+        self.event_stream.append_with_parent(
             EventType::WorkflowCompleted,
             workflow_id.clone(),
+            parent_workflow_id.clone(),
             serde_json::json!({
                 "steps_completed": run.steps.len(),
             }),
@@ -160,14 +180,9 @@ impl Runtime {
         run
     }
     
-    /// Get the event stream for observability
-    pub fn event_stream(&self) -> &EventStream {
-        &self.event_stream
-    }
-    
     /// Get events from a specific offset (for replay)
-    pub fn events_from_offset(&self, offset: u64) -> Vec<&crate::event::Event> {
-        self.event_stream.from_offset(offset).collect()
+    pub fn events_from_offset(&self, offset: u64) -> Vec<Event> {
+        self.event_stream.from_offset(offset)
     }
 }
 
@@ -176,3 +191,4 @@ impl Default for Runtime {
         Self::new()
     }
 }
+

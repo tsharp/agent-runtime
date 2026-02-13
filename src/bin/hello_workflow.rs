@@ -1,5 +1,6 @@
 use agent_runtime::{
-    AgentConfig, Runtime, Workflow, tool::{EchoTool, CalculatorTool}
+    AgentConfig, Runtime, Workflow, AgentStep,
+    tool::{EchoTool, CalculatorTool}
 };
 use std::sync::Arc;
 
@@ -26,11 +27,11 @@ async fn main() {
         .system_prompt("You summarize the results from previous steps.")
         .build();
     
-    // Build workflow
+    // Build workflow with steps (NEW API)
     let workflow = Workflow::builder()
-        .agent(greeter)
-        .agent(calculator)
-        .agent(summarizer)
+        .step(Box::new(AgentStep::new(greeter)))
+        .step(Box::new(AgentStep::new(calculator)))
+        .step(Box::new(AgentStep::new(summarizer)))
         .initial_input(serde_json::json!({
             "user_name": "World",
             "calculation": {
@@ -42,21 +43,40 @@ async fn main() {
         .build();
     
     println!("Workflow ID: {}", workflow.id);
-    println!("Agents: {}\n", workflow.agents.len());
+    println!("Steps: {}\n", workflow.steps.len());
     
     // Create runtime and execute
-    let mut runtime = Runtime::new();
+    let runtime = Runtime::new();
+    
+    // Subscribe to event stream (simulate real-time listener)
+    let mut event_receiver = runtime.event_stream().subscribe();
+    
+    // Spawn task to listen to events in real-time
+    let event_listener = tokio::spawn(async move {
+        println!("📡 Real-time Event Listener Active\n");
+        let mut count = 0;
+        while let Ok(event) = event_receiver.recv().await {
+            count += 1;
+            println!(
+                "  [LIVE] Event #{}: {:?} @ offset {}",
+                count, event.event_type, event.offset
+            );
+        }
+    });
     
     println!("Executing workflow...\n");
     let run = runtime.execute(workflow).await;
     
+    // Give event listener a moment to process
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    
     // Print results
-    println!("=== Execution Complete ===");
+    println!("\n=== Execution Complete ===");
     println!("Status: {:?}", run.state);
     println!("Steps executed: {}\n", run.steps.len());
     
     for step in &run.steps {
-        println!("Step {}: {}", step.step_index, step.agent_name);
+        println!("Step {}: {} ({})", step.step_index, step.step_name, step.step_type);
         println!("  Input: {}", serde_json::to_string_pretty(&step.input).unwrap());
         if let Some(ref output) = step.output {
             println!("  Output: {}", serde_json::to_string_pretty(output).unwrap());
@@ -73,8 +93,8 @@ async fn main() {
         println!();
     }
     
-    // Print event stream
-    println!("=== Event Stream ({} events) ===", runtime.event_stream().len());
+    // Print event stream from history
+    println!("=== Event History ({} events) ===", runtime.event_stream().len());
     for event in runtime.event_stream().all() {
         println!(
             "[offset:{}] {:?} - {}",
@@ -84,10 +104,23 @@ async fn main() {
         );
     }
     
+    // Demonstrate offset-based replay
+    println!("\n=== Replay from Offset 5 ===");
+    let replayed_events = runtime.events_from_offset(5);
+    println!("Replaying {} events:", replayed_events.len());
+    for event in &replayed_events {
+        println!("  [offset:{}] {:?}", event.offset, event.event_type);
+    }
+    
     println!("\n=== Snapshot (JSON) ===");
     let snapshot = serde_json::json!({
         "run": run,
         "events": runtime.event_stream().all(),
+        "total_events": runtime.event_stream().len(),
+        "current_offset": runtime.event_stream().current_offset(),
     });
     println!("{}", serde_json::to_string_pretty(&snapshot).unwrap());
+    
+    // Clean up event listener
+    event_listener.abort();
 }
