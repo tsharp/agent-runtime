@@ -1,0 +1,17 @@
+flowchart TD
+    Start([Start]):::successStyle  
+    Start --> Step0
+    Step0["greeter<br/><i>Agent</i><br/>0ms"]:::successStyle
+    Step0 --> Step1
+    Step1[/"extract_value<br/><i>Transform</i><br/>0ms"/]:::successStyle
+    Step1 --> Step2
+    Step2{"check_sign<br/><i>Conditional</i><br/>0ms"}:::successStyle
+    Step2 --> Step3
+    Step3[["validation_pipeline<br/><i>SubWorkflow</i><br/>0ms"]]:::successStyle
+    Step3 --> Step4
+    Step4["calculator<br/><i>Agent</i><br/>0ms"]:::successStyle
+    Step4 --> End
+    End([End]):::successStyle
+
+    classDef successStyle fill:#c8e6c9,stroke:#2e7d32,stroke-width:3px
+    classDef failureStyle fill:#ffcdd2,stroke:#c62828,stroke-width:3px

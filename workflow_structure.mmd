@@ -1,0 +1,19 @@
+flowchart TD
+    Start([Start])
+    Start --> Step0
+    Step0["greeter<br/><i>Agent</i>"]
+    Step0 --> Step1
+    Step1[/"extract_value<br/><i>Transform</i>"/]
+    Step1 --> Step2
+    Step2{"check_sign<br/><i>Conditional</i>"}
+    Step2 --> Step3
+    Step3[["validation_pipeline<br/><i>Sub-Workflow</i>"]]
+    Step3 --> Step4
+    Step4["calculator<br/><i>Agent</i>"]
+    Step4 --> End
+    End([End])
+
+    classDef agentStyle fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef transformStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef conditionalStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef subworkflowStyle fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
