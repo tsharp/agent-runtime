@@ -10,16 +10,13 @@ pub struct FileLogger {
 impl FileLogger {
     /// Create a new file logger
     pub fn new(path: impl AsRef<std::path::Path>) -> std::io::Result<Self> {
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(path)?;
-        
+        let file = OpenOptions::new().create(true).append(true).open(path)?;
+
         Ok(Self {
             file: Arc::new(Mutex::new(file)),
         })
     }
-    
+
     /// Log a message
     pub fn log(&self, message: impl AsRef<str>) {
         if let Ok(mut file) = self.file.lock() {
@@ -27,7 +24,7 @@ impl FileLogger {
             let _ = writeln!(file, "[{}] {}", timestamp, message.as_ref());
         }
     }
-    
+
     /// Log with a specific level
     pub fn log_level(&self, level: &str, message: impl AsRef<str>) {
         if let Ok(mut file) = self.file.lock() {

@@ -1,13 +1,13 @@
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
+pub mod mock;
 pub mod provider;
-pub mod types;
-pub mod mock; // Always available for testing
+pub mod types; // Always available for testing
 
+pub use mock::{MockLlmClient, MockResponse, MockToolCall};
 pub use provider::{LlamaClient, OpenAIClient};
 pub use types::{ChatMessage, ChatRequest, ChatResponse, Role};
-pub use mock::{MockLlmClient, MockResponse, MockToolCall};
 
 /// Result type for LLM operations
 pub type LlmResult<T> = Result<T, LlmError>;

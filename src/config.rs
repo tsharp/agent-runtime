@@ -77,9 +77,7 @@ impl RuntimeConfig {
     /// Load configuration from a file (auto-detects format from extension)
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
         let path = path.as_ref();
-        let extension = path.extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let extension = path.extension().and_then(|s| s.to_str()).unwrap_or("");
 
         match extension {
             "toml" => Self::from_toml_file(path),
@@ -107,7 +105,8 @@ impl RuntimeConfig {
                 .try_parsing(true),
         );
 
-        settings.build()
+        settings
+            .build()
             .and_then(|c| c.try_deserialize())
             .map_err(|e| ConfigError {
                 code: ConfigErrorCode::ParseError,
@@ -126,10 +125,7 @@ impl RuntimeConfig {
         // Add file if provided
         if let Some(path) = file_path {
             let path_str = path.as_ref().display().to_string();
-            settings = settings.add_source(
-                config::File::with_name(&path_str)
-                    .required(false)
-            );
+            settings = settings.add_source(config::File::with_name(&path_str).required(false));
         }
 
         // Add environment variables (highest priority)
@@ -139,7 +135,8 @@ impl RuntimeConfig {
                 .try_parsing(true),
         );
 
-        settings.build()
+        settings
+            .build()
             .and_then(|c| c.try_deserialize())
             .map_err(|e| ConfigError {
                 code: ConfigErrorCode::ParseError,
@@ -332,7 +329,7 @@ pub struct TimeoutConfigSettings {
 impl Default for TimeoutConfigSettings {
     fn default() -> Self {
         Self {
-            total_ms: Some(300000), // 5 minutes
+            total_ms: Some(300000),         // 5 minutes
             first_response_ms: Some(30000), // 30 seconds
         }
     }

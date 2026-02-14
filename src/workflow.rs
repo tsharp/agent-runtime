@@ -28,7 +28,7 @@ impl Workflow {
     pub fn builder() -> WorkflowBuilder {
         WorkflowBuilder::new()
     }
-    
+
     /// Convenience method to create a new workflow with a name
     /// This is primarily for testing - production code should use builder()
     pub fn new(name: &str) -> WorkflowBuilder {
@@ -537,7 +537,7 @@ impl WorkflowBuilder {
             initial_input: None,
         }
     }
-    
+
     /// Set the workflow name/ID
     pub fn name(mut self, name: String) -> Self {
         self.name = Some(name);
@@ -549,7 +549,7 @@ impl WorkflowBuilder {
         self.steps.push(step);
         self
     }
-    
+
     /// Add a step to the workflow (alias for better readability)
     pub fn add_step(mut self, step: Box<dyn Step>) -> Self {
         self.steps.push(step);
@@ -564,7 +564,9 @@ impl WorkflowBuilder {
 
     pub fn build(self) -> Workflow {
         Workflow {
-            id: self.name.unwrap_or_else(|| format!("wf_{}", uuid::Uuid::new_v4())),
+            id: self
+                .name
+                .unwrap_or_else(|| format!("wf_{}", uuid::Uuid::new_v4())),
             steps: self.steps,
             initial_input: self.initial_input.unwrap_or(serde_json::json!({})),
             state: WorkflowState::Pending,

@@ -69,12 +69,12 @@ impl LlamaClient {
     pub fn localhost_insecure(port: u16) -> Self {
         Self::insecure(format!("https://localhost:{}", port), "llama")
     }
-    
+
     /// Get the model name
     pub fn model(&self) -> &str {
         &self.model
     }
-    
+
     /// Get the provider name
     pub fn provider(&self) -> &str {
         "llama.cpp"
@@ -205,7 +205,7 @@ impl ChatClient for LlamaClient {
         let mut stream = response.bytes_stream();
         while let Some(chunk_result) = stream.next().await {
             let bytes = chunk_result.map_err(|e| LlmError::NetworkError(e.to_string()))?;
-            
+
             // Parse SSE format: "data: {...}\n\n"
             let text = String::from_utf8_lossy(&bytes);
             for line in text.lines() {
@@ -248,7 +248,7 @@ struct LlamaChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     tools: Option<Vec<serde_json::Value>>,
 }
@@ -270,7 +270,7 @@ struct Choice {
 struct Message {
     #[serde(default)]
     content: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_calls: Option<Vec<LlamaToolCall>>,
 }

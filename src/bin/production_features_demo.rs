@@ -1,6 +1,4 @@
-use agent_runtime::{
-    LlmError, RetryPolicy, RuntimeError, TimeoutConfig,
-};
+use agent_runtime::{LlmError, RetryPolicy, RuntimeError, TimeoutConfig};
 use std::time::Duration;
 
 /// Example demonstrating production-ready error handling, retries, and timeouts
@@ -73,8 +71,7 @@ async fn demo_retry_logic() -> Result<(), Box<dyn std::error::Error>> {
             .execute("api_call", move || {
                 let attempt_count = attempt_count.clone();
                 async move {
-                    let count =
-                        attempt_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    let count = attempt_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
                     println!("  Attempt {}", count);
 
                     if count < 3 {
@@ -179,8 +176,7 @@ async fn demo_combined() -> Result<(), Box<dyn std::error::Error>> {
                 let timeout_config = timeout_config.clone();
 
                 async move {
-                    let count =
-                        attempt_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    let count = attempt_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
                     println!("  Attempt {}", count);
 
                     // Wrap the operation in a timeout

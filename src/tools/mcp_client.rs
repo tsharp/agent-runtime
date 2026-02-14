@@ -21,7 +21,9 @@ use crate::tool::Tool;
 use crate::types::{JsonValue, ToolError, ToolResult};
 use async_trait::async_trait;
 use rust_mcp_sdk::{
-    mcp_client::{client_runtime_core, ClientHandlerCore, McpClientOptions, ToMcpClientHandlerCore},
+    mcp_client::{
+        client_runtime_core, ClientHandlerCore, McpClientOptions, ToMcpClientHandlerCore,
+    },
     schema::{
         CallToolRequestParams, ClientCapabilities, Implementation, InitializeRequestParams,
         LATEST_PROTOCOL_VERSION,
@@ -32,18 +34,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 /// MCP Client wrapper for connecting to MCP servers
-/// 
+///
 /// Manages a connection to an MCP server and provides methods to:
 /// - Discover available tools
 /// - Execute tools remotely
-/// 
+///
 /// # Example (when implemented)
 /// ```no_run
 /// # use agent_runtime::McpClient;
 /// # async fn example() -> Result<(), String> {
 /// // Connect to an MCP server via stdio
 /// let client = McpClient::new_stdio("npx", &["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]).await?;
-/// 
+///
 /// // Discover tools
 /// let tools = client.list_tools().await?;
 /// println!("Found {} tools", tools.len());
@@ -56,11 +58,11 @@ pub struct McpClient {
 
 impl McpClient {
     /// Create a new MCP client connected to a server via stdio
-    /// 
+    ///
     /// # Arguments
     /// * `command` - The command to run (e.g., "npx", "python", "node")
     /// * `args` - Arguments to pass (e.g., ["-y", "@modelcontextprotocol/server-filesystem", "/path"])
-    /// 
+    ///
     /// # Example MCP Servers
     /// - Filesystem: `npx -y @modelcontextprotocol/server-filesystem /tmp`
     /// - SQLite: `npx -y @modelcontextprotocol/server-sqlite --db-path ./data.db`
@@ -110,9 +112,9 @@ impl McpClient {
 
         Ok(Arc::new(Self { inner: client }))
     }
-    
+
     /// Discover all tools available on the connected MCP server
-    /// 
+    ///
     /// Sends a `tools/list` request to the MCP server and parses the response.
     pub async fn list_tools(&self) -> Result<Vec<McpToolInfo>, String> {
         let response = self
@@ -131,9 +133,9 @@ impl McpClient {
             })
             .collect())
     }
-    
+
     /// Call a tool on the MCP server
-    /// 
+    ///
     /// Sends a `tools/call` request with the given arguments and waits for the result.
     pub async fn call_tool(
         &self,
@@ -183,7 +185,9 @@ pub struct McpToolInfo {
 /// Minimal handler for MCP client (we don't need custom message handling)
 struct MinimalClientHandler;
 
-use rust_mcp_sdk::schema::{NotificationFromServer, ResultFromClient, RpcError, ServerJsonrpcRequest};
+use rust_mcp_sdk::schema::{
+    NotificationFromServer, ResultFromClient, RpcError, ServerJsonrpcRequest,
+};
 
 #[async_trait]
 impl ClientHandlerCore for MinimalClientHandler {
@@ -213,7 +217,7 @@ impl ClientHandlerCore for MinimalClientHandler {
 }
 
 /// A tool that wraps an MCP server tool
-/// 
+///
 /// This implements our `Tool` trait so it can be used alongside native tools
 /// in the `ToolRegistry`.
 pub struct McpTool {
@@ -239,7 +243,7 @@ impl McpTool {
             client,
         }
     }
-    
+
     /// Create from McpToolInfo (convenience method)
     pub fn from_info(info: McpToolInfo, client: Arc<McpClient>) -> Self {
         Self::new(info.name, info.description, info.input_schema, client)
@@ -262,7 +266,7 @@ impl Tool for McpTool {
 
     async fn execute(&self, params: HashMap<String, JsonValue>) -> Result<ToolResult, ToolError> {
         let start = std::time::Instant::now();
-        
+
         // Call through to MCP server
         match self.client.call_tool(&self.name, params).await {
             Ok(output) => Ok(ToolResult::success(
@@ -273,4 +277,3 @@ impl Tool for McpTool {
         }
     }
 }
-

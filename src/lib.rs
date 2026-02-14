@@ -23,8 +23,8 @@ pub use config::{
     TimeoutConfigSettings, WorkflowConfig,
 };
 pub use error::{
-    AgentError, AgentErrorCode, ConfigError, ConfigErrorCode, LlmError, LlmErrorCode,
-    RuntimeError, ToolError, ToolErrorCode, WorkflowError, WorkflowErrorCode,
+    AgentError, AgentErrorCode, ConfigError, ConfigErrorCode, LlmError, LlmErrorCode, RuntimeError,
+    ToolError, ToolErrorCode, WorkflowError, WorkflowErrorCode,
 };
 pub use event::{Event, EventStream, EventType};
 pub use llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};
@@ -47,12 +47,14 @@ pub mod prelude {
     pub use crate::llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};
     pub use crate::step_impls::{AgentStep, ConditionalStep, SubWorkflowStep, TransformStep};
     pub use crate::tool::{NativeTool, Tool, ToolRegistry};
-    pub use crate::types::{AgentInput, AgentOutput, ToolResult, ToolStatus, ToolError as TypesToolError};
+    pub use crate::types::{
+        AgentInput, AgentOutput, ToolError as TypesToolError, ToolResult, ToolStatus,
+    };
     pub use crate::workflow::Workflow;
-    
+
     #[cfg(test)]
     pub use crate::llm::{MockLlmClient, MockResponse, MockToolCall};
-    
+
     #[cfg(not(test))]
     pub use crate::llm::{MockLlmClient, MockResponse, MockToolCall};
 }

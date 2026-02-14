@@ -1,4 +1,8 @@
-use agent_runtime::{event::EventType, tool::{EchoTool, ToolRegistry}, AgentConfig, AgentStep, Runtime, Workflow};
+use agent_runtime::{
+    event::EventType,
+    tool::{EchoTool, ToolRegistry},
+    AgentConfig, AgentStep, Runtime, Workflow,
+};
 use std::sync::Arc;
 
 #[tokio::main]
@@ -8,7 +12,7 @@ async fn main() {
     // Create a simple workflow
     let mut registry = ToolRegistry::new();
     registry.register(EchoTool);
-    
+
     let agent = AgentConfig::builder("demo_agent")
         .system_prompt("Demo agent for testing event streams.")
         .tools(Arc::new(registry))

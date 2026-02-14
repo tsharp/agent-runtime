@@ -28,12 +28,12 @@ impl OpenAIClient {
             http_client: HttpClient::new(),
         }
     }
-    
+
     /// Get the model name
     pub fn model(&self) -> &str {
         &self.model
     }
-    
+
     /// Get the provider name
     pub fn provider(&self) -> &str {
         "openai"
@@ -143,7 +143,7 @@ struct OpenAIChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     tools: Option<Vec<serde_json::Value>>,
 }
@@ -165,7 +165,7 @@ struct Choice {
 struct Message {
     #[serde(default)]
     content: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_calls: Option<Vec<OpenAIToolCall>>,
 }

@@ -102,11 +102,11 @@ pub struct ToolCall {
 pub enum ToolStatus {
     /// Tool executed successfully and returned data
     Success,
-    
+
     /// Tool executed successfully but found no data/results
     /// This signals to the LLM: "Don't retry, this is a valid empty result"
     SuccessNoData,
-    
+
     /// Tool execution failed
     Error,
 }
@@ -140,7 +140,7 @@ impl ToolResult {
             message: None,
         }
     }
-    
+
     /// Create a successful result with no data
     pub fn success_no_data(message: impl Into<String>, duration_ms: f64) -> Self {
         Self {
@@ -150,7 +150,7 @@ impl ToolResult {
             message: Some(message.into()),
         }
     }
-    
+
     /// Create an error result
     pub fn error(message: impl Into<String>, duration_ms: f64) -> Self {
         Self {
@@ -160,7 +160,7 @@ impl ToolResult {
             message: Some(message.into()),
         }
     }
-    
+
     /// Add a message to this result
     pub fn with_message(mut self, message: impl Into<String>) -> Self {
         self.message = Some(message.into());

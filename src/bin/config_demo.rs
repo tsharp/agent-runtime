@@ -1,4 +1,4 @@
-use agent_runtime::{RuntimeConfig, RetryPolicy, TimeoutConfig};
+use agent_runtime::{RetryPolicy, RuntimeConfig, TimeoutConfig};
 
 /// Example demonstrating configuration management
 #[tokio::main]
@@ -47,7 +47,10 @@ fn demo_default_config() {
     println!("  Directory: {}", config.logging.directory);
 
     println!("\nWorkflow Settings:");
-    println!("  Max Tool Iterations: {}", config.workflow.max_tool_iterations);
+    println!(
+        "  Max Tool Iterations: {}",
+        config.workflow.max_tool_iterations
+    );
 
     println!();
 }
@@ -132,7 +135,10 @@ fn demo_programmatic_config() {
     println!("✅ Created custom configuration programmatically");
     println!("Retry attempts: {}", config.retry.max_attempts);
     println!("Log level: {}", config.logging.level);
-    println!("Max tool iterations: {}", config.workflow.max_tool_iterations);
+    println!(
+        "Max tool iterations: {}",
+        config.workflow.max_tool_iterations
+    );
 
     println!();
 }

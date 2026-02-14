@@ -1,10 +1,12 @@
+use crate::llm::types::{
+    ChatMessage, ChatRequest, ChatResponse, FunctionCall, Role, ToolCall, Usage,
+};
 use crate::llm::{ChatClient, LlmError};
-use crate::llm::types::{ChatMessage, ChatRequest, ChatResponse, FunctionCall, Role, ToolCall, Usage};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
-/// 
+///
 /// Supports:
 /// - Predefined responses
 /// - Tool call simulation
@@ -41,12 +43,12 @@ impl MockLlmClient {
             error_on_call: Arc::new(Mutex::new(None)),
         }
     }
-    
+
     /// Create a new mock client with simple text responses
     pub fn with_responses_vec(responses: Vec<&str>) -> Self {
         Self {
             responses: Arc::new(Mutex::new(
-                responses.iter().map(|r| MockResponse::text(r)).collect()
+                responses.iter().map(|r| MockResponse::text(r)).collect(),
             )),
             calls: Arc::new(Mutex::new(Vec::new())),
             error_on_call: Arc::new(Mutex::new(None)),
@@ -75,19 +77,25 @@ impl MockLlmClient {
             MockResponse::text(final_response),
         ])
     }
-    
+
     /// Add a text response to the chain
     pub fn with_response(mut self, text: &str) -> Self {
-        self.responses.lock().unwrap().push(MockResponse::text(text));
+        self.responses
+            .lock()
+            .unwrap()
+            .push(MockResponse::text(text));
         self
     }
-    
+
     /// Add a tool call response to the chain
     pub fn with_tool_call(mut self, tool_name: &str, args: Value) -> Self {
-        self.responses.lock().unwrap().push(MockResponse::with_tool_call(tool_name, args));
+        self.responses
+            .lock()
+            .unwrap()
+            .push(MockResponse::with_tool_call(tool_name, args));
         self
     }
-    
+
     /// Set the client to error on a specific call index
     pub fn error_on_call(self, call_index: usize) -> Self {
         *self.error_on_call.lock().unwrap() = Some(call_index);
@@ -146,10 +154,13 @@ impl MockResponse {
     pub fn with_tool_calls(tool_calls: Vec<(&str, Value)>) -> Self {
         Self {
             content: String::new(),
-            tool_calls: tool_calls.into_iter().map(|(name, args)| MockToolCall {
-                name: name.to_string(),
-                arguments: args,
-            }).collect(),
+            tool_calls: tool_calls
+                .into_iter()
+                .map(|(name, args)| MockToolCall {
+                    name: name.to_string(),
+                    arguments: args,
+                })
+                .collect(),
             finish_reason: "tool_calls".to_string(),
         }
     }
@@ -191,16 +202,21 @@ impl ChatClient for MockLlmClient {
         let tool_calls = if mock_response.tool_calls.is_empty() {
             None
         } else {
-            Some(mock_response.tool_calls.iter().enumerate().map(|(i, tc)| {
-                ToolCall {
-                    id: format!("call_{}", i),
-                    r#type: "function".to_string(),
-                    function: FunctionCall {
-                        name: tc.name.clone(),
-                        arguments: serde_json::to_string(&tc.arguments).unwrap(),
-                    },
-                }
-            }).collect())
+            Some(
+                mock_response
+                    .tool_calls
+                    .iter()
+                    .enumerate()
+                    .map(|(i, tc)| ToolCall {
+                        id: format!("call_{}", i),
+                        r#type: "function".to_string(),
+                        function: FunctionCall {
+                            name: tc.name.clone(),
+                            arguments: serde_json::to_string(&tc.arguments).unwrap(),
+                        },
+                    })
+                    .collect(),
+            )
         };
 
         Ok(ChatResponse {
@@ -223,7 +239,7 @@ impl ChatClient for MockLlmClient {
     ) -> Result<ChatResponse, LlmError> {
         // For streaming, just send the response in chunks
         let response = self.chat(request).await?;
-        
+
         // Simulate streaming by sending content word by word
         for word in response.content.split_whitespace() {
             let _ = tx.send(format!("{} ", word)).await;
@@ -240,7 +256,7 @@ mod tests {
     #[tokio::test]
     async fn test_mock_client_simple_response() {
         let client = MockLlmClient::with_responses_vec(vec!["Hello, world!"]);
-        
+
         let request = ChatRequest::new(vec![ChatMessage::user("Hi")]);
 
         let response = client.chat(request).await.unwrap();
@@ -251,7 +267,7 @@ mod tests {
     #[tokio::test]
     async fn test_mock_client_multiple_responses() {
         let client = MockLlmClient::with_responses_vec(vec!["First", "Second", "Third"]);
-        
+
         let request = ChatRequest::new(vec![ChatMessage::user("Hi")]);
 
         let r1 = client.chat(request.clone()).await.unwrap();
@@ -270,18 +286,18 @@ mod tests {
     async fn test_mock_client_tool_call() {
         let client = MockLlmClient::from_tool_call(
             "calculator",
-            json!({"operation": "add", "a": 5, "b": 3})
+            json!({"operation": "add", "a": 5, "b": 3}),
         );
-        
+
         let request = ChatRequest::new(vec![ChatMessage::user("What is 5 + 3?")]);
 
         let response = client.chat(request).await.unwrap();
         assert!(response.tool_calls.is_some());
-        
+
         let tool_calls = response.tool_calls.unwrap();
         assert_eq!(tool_calls.len(), 1);
         assert_eq!(tool_calls[0].function.name, "calculator");
-        
+
         let args: Value = serde_json::from_str(&tool_calls[0].function.arguments).unwrap();
         assert_eq!(args["operation"], "add");
         assert_eq!(args["a"], 5);
@@ -292,7 +308,7 @@ mod tests {
     async fn test_mock_client_error_injection() {
         let client = MockLlmClient::with_responses_vec(vec!["First", "Second", "Third"]);
         client.fail_on_call(1); // Fail on second call
-        
+
         let request = ChatRequest::new(vec![ChatMessage::user("Hi")]);
 
         // First call succeeds
@@ -311,7 +327,7 @@ mod tests {
     #[tokio::test]
     async fn test_mock_client_call_tracking() {
         let client = MockLlmClient::with_responses_vec(vec!["Response 1", "Response 2"]);
-        
+
         let req1 = ChatRequest::new(vec![ChatMessage::user("Question 1")]);
         let req2 = ChatRequest::new(vec![ChatMessage::user("Question 2")]);
 

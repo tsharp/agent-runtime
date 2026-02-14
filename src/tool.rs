@@ -21,8 +21,9 @@ pub trait Tool: Send + Sync {
     async fn execute(&self, params: HashMap<String, JsonValue>) -> ToolExecutionResult;
 }
 
-type ToolExecutor =
-    Arc<dyn Fn(HashMap<String, JsonValue>) -> BoxFuture<'static, ToolExecutionResult> + Send + Sync>;
+type ToolExecutor = Arc<
+    dyn Fn(HashMap<String, JsonValue>) -> BoxFuture<'static, ToolExecutionResult> + Send + Sync,
+>;
 
 /// A native (in-memory) tool implemented as a Rust async function
 ///

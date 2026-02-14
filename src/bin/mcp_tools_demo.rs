@@ -7,11 +7,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test 1: Connect to the "everything" MCP server
     println!("🔌 Connecting to @modelcontextprotocol/server-everything...");
-    let client = McpClient::new_stdio(
-        "npx",
-        &["-y", "@modelcontextprotocol/server-everything"],
-    )
-    .await?;
+    let client =
+        McpClient::new_stdio("npx", &["-y", "@modelcontextprotocol/server-everything"]).await?;
     println!("✅ Connected!\n");
 
     // Test 2: Discover tools
@@ -63,10 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("📣 Testing 'echo' tool");
     if let Some(echo_tool) = tools.iter().find(|t| t.name() == "echo") {
         let mut params = std::collections::HashMap::new();
-        params.insert(
-            "message".to_string(),
-            serde_json::json!("Hello from MCP!"),
-        );
+        params.insert("message".to_string(), serde_json::json!("Hello from MCP!"));
 
         let result = echo_tool.execute(params).await;
         match result {

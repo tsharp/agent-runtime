@@ -5,31 +5,28 @@ use std::fmt;
 pub enum RuntimeError {
     /// Error during workflow execution
     Workflow(WorkflowError),
-    
+
     /// Error during agent execution
     Agent(AgentError),
-    
+
     /// Error from LLM provider
     Llm(LlmError),
-    
+
     /// Error during tool execution
     Tool(ToolError),
-    
+
     /// Configuration validation error
     Config(ConfigError),
-    
+
     /// Retry attempts exhausted
     RetryExhausted {
         operation: String,
         attempts: u32,
         last_error: Box<RuntimeError>,
     },
-    
+
     /// Operation timed out
-    Timeout {
-        operation: String,
-        duration_ms: u64,
-    },
+    Timeout { operation: String, duration_ms: u64 },
 }
 
 /// Workflow-specific errors
@@ -138,11 +135,26 @@ impl fmt::Display for RuntimeError {
             RuntimeError::Llm(e) => write!(f, "LLM error: {}", e),
             RuntimeError::Tool(e) => write!(f, "Tool error: {}", e),
             RuntimeError::Config(e) => write!(f, "Configuration error: {}", e),
-            RuntimeError::RetryExhausted { operation, attempts, last_error } => {
-                write!(f, "Retry exhausted for '{}' after {} attempts: {}", operation, attempts, last_error)
+            RuntimeError::RetryExhausted {
+                operation,
+                attempts,
+                last_error,
+            } => {
+                write!(
+                    f,
+                    "Retry exhausted for '{}' after {} attempts: {}",
+                    operation, attempts, last_error
+                )
             }
-            RuntimeError::Timeout { operation, duration_ms } => {
-                write!(f, "Operation '{}' timed out after {}ms", operation, duration_ms)
+            RuntimeError::Timeout {
+                operation,
+                duration_ms,
+            } => {
+                write!(
+                    f,
+                    "Operation '{}' timed out after {}ms",
+                    operation, duration_ms
+                )
             }
         }
     }
@@ -232,7 +244,7 @@ impl LlmError {
                 | LlmErrorCode::ServerError
         )
     }
-    
+
     /// Create a network error
     pub fn network(message: impl Into<String>) -> Self {
         Self {
@@ -243,7 +255,7 @@ impl LlmError {
             retryable: true,
         }
     }
-    
+
     /// Create a rate limit error
     pub fn rate_limit(message: impl Into<String>) -> Self {
         Self {
@@ -254,7 +266,7 @@ impl LlmError {
             retryable: true,
         }
     }
-    
+
     /// Create a server error
     pub fn server_error(message: impl Into<String>) -> Self {
         Self {
