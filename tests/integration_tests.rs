@@ -108,7 +108,7 @@ async fn test_agent_with_tool_execution() {
 #[tokio::test]
 async fn test_agent_tool_loop_detection() {
     // Mock LLM that tries to call the same tool twice
-    let mock_llm = Arc::new(MockLlmClient::with_responses(vec![
+    let mock_llm = Arc::new(MockLlmClient::from_mock_responses(vec![
         MockResponse::with_tool_call("search", json!({"query": "nonexistent"})),
         MockResponse::with_tool_call("search", json!({"query": "nonexistent"})), // Duplicate!
         MockResponse::text("I couldn't find any information"),
@@ -141,7 +141,7 @@ async fn test_agent_tool_loop_detection() {
 #[tokio::test]
 async fn test_error_handling_network_failure() {
     // Mock LLM that fails on first call
-    let mock_llm = Arc::new(MockLlmClient::new(vec!["Response 1", "Response 2"]));
+    let mock_llm = Arc::new(MockLlmClient::with_responses_vec(vec!["Response 1", "Response 2"]));
     mock_llm.fail_on_call(0); // Fail on first call
 
     let agent = Agent::new(AgentConfig::builder("flaky_agent").system_prompt("Test agent").build()).with_llm_client(mock_llm);

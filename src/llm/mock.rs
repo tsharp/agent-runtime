@@ -33,8 +33,17 @@ pub struct MockToolCall {
 }
 
 impl MockLlmClient {
+    /// Create a new empty mock client (call with_response() to add responses)
+    pub fn new() -> Self {
+        Self {
+            responses: Arc::new(Mutex::new(Vec::new())),
+            calls: Arc::new(Mutex::new(Vec::new())),
+            error_on_call: Arc::new(Mutex::new(None)),
+        }
+    }
+    
     /// Create a new mock client with simple text responses
-    pub fn new(responses: Vec<&str>) -> Self {
+    pub fn with_responses_vec(responses: Vec<&str>) -> Self {
         Self {
             responses: Arc::new(Mutex::new(
                 responses.iter().map(|r| MockResponse::text(r)).collect()
@@ -45,7 +54,7 @@ impl MockLlmClient {
     }
 
     /// Create a mock client with detailed responses
-    pub fn with_responses(responses: Vec<MockResponse>) -> Self {
+    pub fn from_mock_responses(responses: Vec<MockResponse>) -> Self {
         Self {
             responses: Arc::new(Mutex::new(responses)),
             calls: Arc::new(Mutex::new(Vec::new())),
@@ -54,17 +63,35 @@ impl MockLlmClient {
     }
 
     /// Create a mock client that calls a specific tool
-    pub fn with_tool_call(tool_name: &str, args: Value) -> Self {
+    pub fn from_tool_call(tool_name: &str, args: Value) -> Self {
         let response = MockResponse::with_tool_call(tool_name, args);
-        Self::with_responses(vec![response])
+        Self::from_mock_responses(vec![response])
     }
 
     /// Create a mock client that calls a tool then responds with text
     pub fn with_tool_then_text(tool_name: &str, args: Value, final_response: &str) -> Self {
-        Self::with_responses(vec![
+        Self::from_mock_responses(vec![
             MockResponse::with_tool_call(tool_name, args),
             MockResponse::text(final_response),
         ])
+    }
+    
+    /// Add a text response to the chain
+    pub fn with_response(mut self, text: &str) -> Self {
+        self.responses.lock().unwrap().push(MockResponse::text(text));
+        self
+    }
+    
+    /// Add a tool call response to the chain
+    pub fn with_tool_call(mut self, tool_name: &str, args: Value) -> Self {
+        self.responses.lock().unwrap().push(MockResponse::with_tool_call(tool_name, args));
+        self
+    }
+    
+    /// Set the client to error on a specific call index
+    pub fn error_on_call(self, call_index: usize) -> Self {
+        *self.error_on_call.lock().unwrap() = Some(call_index);
+        self
     }
 
     /// Set the client to fail on the nth call (0-indexed)
@@ -212,7 +239,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_client_simple_response() {
-        let client = MockLlmClient::new(vec!["Hello, world!"]);
+        let client = MockLlmClient::with_responses_vec(vec!["Hello, world!"]);
         
         let request = ChatRequest::new(vec![ChatMessage::user("Hi")]);
 
@@ -223,7 +250,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_client_multiple_responses() {
-        let client = MockLlmClient::new(vec!["First", "Second", "Third"]);
+        let client = MockLlmClient::with_responses_vec(vec!["First", "Second", "Third"]);
         
         let request = ChatRequest::new(vec![ChatMessage::user("Hi")]);
 
@@ -241,7 +268,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_client_tool_call() {
-        let client = MockLlmClient::with_tool_call(
+        let client = MockLlmClient::from_tool_call(
             "calculator",
             json!({"operation": "add", "a": 5, "b": 3})
         );
@@ -263,7 +290,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_client_error_injection() {
-        let client = MockLlmClient::new(vec!["First", "Second", "Third"]);
+        let client = MockLlmClient::with_responses_vec(vec!["First", "Second", "Third"]);
         client.fail_on_call(1); // Fail on second call
         
         let request = ChatRequest::new(vec![ChatMessage::user("Hi")]);
@@ -283,7 +310,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_mock_client_call_tracking() {
-        let client = MockLlmClient::new(vec!["Response 1", "Response 2"]);
+        let client = MockLlmClient::with_responses_vec(vec!["Response 1", "Response 2"]);
         
         let req1 = ChatRequest::new(vec![ChatMessage::user("Question 1")]);
         let req2 = ChatRequest::new(vec![ChatMessage::user("Question 2")]);
