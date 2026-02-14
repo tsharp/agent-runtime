@@ -20,10 +20,10 @@ pub enum Role {
 pub struct ChatMessage {
     pub role: Role,
     pub content: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
 }
@@ -55,8 +55,11 @@ impl ChatMessage {
             tool_call_id: None,
         }
     }
-    
-    pub fn assistant_with_tool_calls(content: impl Into<String>, tool_calls: Vec<ToolCall>) -> Self {
+
+    pub fn assistant_with_tool_calls(
+        content: impl Into<String>,
+        tool_calls: Vec<ToolCall>,
+    ) -> Self {
         Self {
             role: Role::Assistant,
             content: content.into(),
@@ -64,7 +67,7 @@ impl ChatMessage {
             tool_call_id: None,
         }
     }
-    
+
     pub fn tool_result(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             role: Role::Tool,
@@ -88,7 +91,7 @@ pub struct ChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<JsonValue>>,
 }
@@ -118,7 +121,7 @@ impl ChatRequest {
         self.top_p = Some(top_p);
         self
     }
-    
+
     pub fn with_tools(mut self, tools: Vec<JsonValue>) -> Self {
         self.tools = Some(tools);
         self
@@ -136,7 +139,7 @@ pub struct ChatResponse {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
 }

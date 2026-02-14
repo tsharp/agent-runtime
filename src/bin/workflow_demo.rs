@@ -9,13 +9,12 @@ use tokio::task;
 #[tokio::main]
 async fn main() {
     println!("=== Workflow Demo ===\n");
-    
+
     // Create output directory
     fs::create_dir_all("output").expect("Failed to create output directory");
-    
+
     // Create file logger
-    let logger = FileLogger::new("output/workflow_demo.log")
-        .expect("Failed to create log file");
+    let logger = FileLogger::new("output/workflow_demo.log").expect("Failed to create log file");
     logger.log("=== Workflow Demo Started ===");
 
     // Create LLM client (insecure HTTPS for local dev)
@@ -92,9 +91,9 @@ async fn main() {
             // Log all events to file
             logger_for_events.log_level(
                 &format!("{:?}", event.event_type),
-                &serde_json::to_string(&event.data).unwrap_or_default()
+                serde_json::to_string(&event.data).unwrap_or_default(),
             );
-            
+
             match event.event_type {
                 EventType::AgentProcessing => {
                     if let Some(agent) = event.data.get("agent").and_then(|v| v.as_str()) {
@@ -138,8 +137,8 @@ async fn main() {
     logger.log("Starting workflow execution");
 
     let result = runtime.execute(workflow).await;
-    
-    logger.log(&format!("Workflow completed. Steps: {}", result.steps.len()));
+
+    logger.log(format!("Workflow completed. Steps: {}", result.steps.len()));
 
     // Wait for event task to finish
     let _ = event_task.await;
@@ -162,7 +161,8 @@ async fn main() {
 
     // Write result to file
     let result_json = serde_json::to_string_pretty(&result).unwrap();
-    fs::write("output/workflow_demo_result.json", result_json).expect("Failed to write result file");
+    fs::write("output/workflow_demo_result.json", result_json)
+        .expect("Failed to write result file");
     println!("💾 Results written to output/");
     println!("   - workflow_demo.log (debug log)");
     println!("   - workflow_demo_result.json (execution result)\n");
@@ -180,6 +180,6 @@ async fn main() {
         println!("  {}", msg);
         logger.log(&msg);
     }
-    
+
     logger.log("=== Workflow Demo Completed ===");
 }

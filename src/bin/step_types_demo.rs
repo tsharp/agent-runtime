@@ -1,5 +1,6 @@
 use agent_runtime::{
-    tool::{CalculatorTool, ToolRegistry}, AgentConfig, AgentStep, ConditionalStep, Runtime, TransformStep, Workflow,
+    tool::{CalculatorTool, ToolRegistry},
+    AgentConfig, AgentStep, ConditionalStep, Runtime, TransformStep, Workflow,
 };
 use std::sync::Arc;
 
@@ -48,7 +49,7 @@ async fn main() {
     // Step 3: Agent - Summarize the result
     let mut registry = ToolRegistry::new();
     registry.register(CalculatorTool);
-    
+
     let agent = AgentConfig::builder("summarizer")
         .system_prompt("You summarize numerical results.")
         .tools(Arc::new(registry))

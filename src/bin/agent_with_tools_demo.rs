@@ -10,13 +10,13 @@ use tokio::task;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Agent with Tools Demo (llama.cpp) ===\n");
-    
+
     // Create output directory
     fs::create_dir_all("output").expect("Failed to create output directory");
-    
+
     // Create file logger
-    let logger = FileLogger::new("output/agent_with_tools_demo.log")
-        .expect("Failed to create log file");
+    let logger =
+        FileLogger::new("output/agent_with_tools_demo.log").expect("Failed to create log file");
     logger.log("=== Agent with Tools Demo Started ===");
 
     // Create tool registry
@@ -36,14 +36,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
         |params| async move {
             let start = std::time::Instant::now();
-            let a = params.get("a").and_then(|v| v.as_f64())
+            let a = params
+                .get("a")
+                .and_then(|v| v.as_f64())
                 .ok_or_else(|| ToolError::InvalidParameters("'a' must be a number".into()))?;
-            let b = params.get("b").and_then(|v| v.as_f64())
+            let b = params
+                .get("b")
+                .and_then(|v| v.as_f64())
                 .ok_or_else(|| ToolError::InvalidParameters("'b' must be a number".into()))?;
-            Ok(ToolResult {
-                output: json!({ "result": a + b }),
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            })
+            let duration = start.elapsed().as_secs_f64() * 1000.0;
+            Ok(ToolResult::success(json!({ "result": a + b }), duration))
         },
     ));
 
@@ -60,14 +62,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
         |params| async move {
             let start = std::time::Instant::now();
-            let a = params.get("a").and_then(|v| v.as_f64())
+            let a = params
+                .get("a")
+                .and_then(|v| v.as_f64())
                 .ok_or_else(|| ToolError::InvalidParameters("'a' must be a number".into()))?;
-            let b = params.get("b").and_then(|v| v.as_f64())
+            let b = params
+                .get("b")
+                .and_then(|v| v.as_f64())
                 .ok_or_else(|| ToolError::InvalidParameters("'b' must be a number".into()))?;
-            Ok(ToolResult {
-                output: json!({ "result": a * b }),
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            })
+            let duration = start.elapsed().as_secs_f64() * 1000.0;
+            Ok(ToolResult::success(json!({ "result": a * b }), duration))
         },
     ));
 
@@ -83,9 +87,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }),
         |params| async move {
             let start = std::time::Instant::now();
-            let city = params.get("city").and_then(|v| v.as_str())
+            let city = params
+                .get("city")
+                .and_then(|v| v.as_str())
                 .ok_or_else(|| ToolError::InvalidParameters("'city' must be a string".into()))?;
-            
+
             // Mock weather data
             let weather = match city.to_lowercase().as_str() {
                 "london" => "Rainy, 15°C",
@@ -93,11 +99,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "new york" => "Cloudy, 18°C",
                 _ => "Unknown, check weather.com",
             };
-            
-            Ok(ToolResult {
-                output: json!({ "weather": weather, "city": city }),
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            })
+            let duration = start.elapsed().as_secs_f64() * 1000.0;
+
+            Ok(ToolResult::success(
+                json!({ "weather": weather, "city": city }),
+                duration,
+            ))
         },
     ));
 
@@ -112,16 +119,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create llama.cpp client (LM Studio)
     let base_url = "http://localhost:1234/v1";
     let model = "qwen/qwen3-30b-a3b-2507";
-    
+
     println!("🦙 Connecting to llama.cpp at {}", base_url);
     println!("   Model: {}\n", model);
-    logger.log(&format!("Connecting to llama.cpp at {} (model: {})", base_url, model));
-    
+    logger.log(format!(
+        "Connecting to llama.cpp at {} (model: {})",
+        base_url, model
+    ));
+
     let llm_client = Arc::new(LlamaClient::new(base_url, model));
-    
+
     // Create runtime for event streaming
     let runtime = Runtime::new();
-    
+
     // Subscribe to events for logging
     let mut event_receiver = runtime.event_stream().subscribe();
     let logger_for_events = logger.clone();
@@ -130,9 +140,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Log all events to file
             logger_for_events.log_level(
                 &format!("{:?}", event.event_type),
-                &serde_json::to_string(&event.data).unwrap_or_default()
+                serde_json::to_string(&event.data).unwrap_or_default(),
             );
-            
+
             // Print tool call events to console
             match event.event_type {
                 EventType::ToolCallStarted => {
@@ -170,11 +180,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let test_num = 1;
         let desc = "Ask agent to calculate something";
         let question = "What is 15 + 27?";
-        
+
         println!("🧮 Test {}: {}", test_num, desc);
         println!("   Question: {}", question);
-        logger.log(&format!("Test {}: {} - Question: {}", test_num, desc, question));
-        
+        logger.log(format!(
+            "Test {}: {} - Question: {}",
+            test_num, desc, question
+        ));
+
         let input = AgentInput {
             data: json!(question),
             metadata: AgentInputMetadata {
@@ -182,20 +195,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 previous_agent: None,
             },
         };
-        
-        match agent.execute_with_events(input, Some(runtime.event_stream())).await {
+
+        match agent
+            .execute_with_events(input, Some(runtime.event_stream()))
+            .await
+        {
             Ok(output) => {
                 if let Some(response) = output.data.get("response").and_then(|v| v.as_str()) {
                     println!("   ✅ Response: {}", response);
-                    logger.log(&format!("Test {} result: {}", test_num, response));
+                    logger.log(format!("Test {} result: {}", test_num, response));
                 } else {
                     println!("   ✅ Response: {}", output.data);
-                    logger.log(&format!("Test {} result: {}", test_num, output.data));
+                    logger.log(format!("Test {} result: {}", test_num, output.data));
                 }
             }
             Err(e) => {
                 println!("   ❌ Error: {}", e);
-                logger.log(&format!("Test {} error: {}", test_num, e));
+                logger.log(format!("Test {} error: {}", test_num, e));
             }
         }
         println!();
@@ -206,11 +222,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let test_num = 2;
         let desc = "Multi-step calculation";
         let question = "What is (5 + 3) * 4?";
-        
+
         println!("🧮 Test {}: {}", test_num, desc);
         println!("   Question: {}", question);
-        logger.log(&format!("Test {}: {} - Question: {}", test_num, desc, question));
-        
+        logger.log(format!(
+            "Test {}: {} - Question: {}",
+            test_num, desc, question
+        ));
+
         let input = AgentInput {
             data: json!(question),
             metadata: AgentInputMetadata {
@@ -218,20 +237,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 previous_agent: None,
             },
         };
-        
-        match agent.execute_with_events(input, Some(runtime.event_stream())).await {
+
+        match agent
+            .execute_with_events(input, Some(runtime.event_stream()))
+            .await
+        {
             Ok(output) => {
                 if let Some(response) = output.data.get("response").and_then(|v| v.as_str()) {
                     println!("   ✅ Response: {}", response);
-                    logger.log(&format!("Test {} result: {}", test_num, response));
+                    logger.log(format!("Test {} result: {}", test_num, response));
                 } else {
                     println!("   ✅ Response: {}", output.data);
-                    logger.log(&format!("Test {} result: {}", test_num, output.data));
+                    logger.log(format!("Test {} result: {}", test_num, output.data));
                 }
             }
             Err(e) => {
                 println!("   ❌ Error: {}", e);
-                logger.log(&format!("Test {} error: {}", test_num, e));
+                logger.log(format!("Test {} error: {}", test_num, e));
             }
         }
         println!();
@@ -242,11 +264,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let test_num = 3;
         let desc = "Weather query";
         let question = "What's the weather in Tokyo?";
-        
+
         println!("🌤️  Test {}: {}", test_num, desc);
         println!("   Question: {}", question);
-        logger.log(&format!("Test {}: {} - Question: {}", test_num, desc, question));
-        
+        logger.log(format!(
+            "Test {}: {} - Question: {}",
+            test_num, desc, question
+        ));
+
         let input = AgentInput {
             data: json!(question),
             metadata: AgentInputMetadata {
@@ -254,20 +279,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 previous_agent: None,
             },
         };
-        
-        match agent.execute_with_events(input, Some(runtime.event_stream())).await {
+
+        match agent
+            .execute_with_events(input, Some(runtime.event_stream()))
+            .await
+        {
             Ok(output) => {
                 if let Some(response) = output.data.get("response").and_then(|v| v.as_str()) {
                     println!("   ✅ Response: {}", response);
-                    logger.log(&format!("Test {} result: {}", test_num, response));
+                    logger.log(format!("Test {} result: {}", test_num, response));
                 } else {
                     println!("   ✅ Response: {}", output.data);
-                    logger.log(&format!("Test {} result: {}", test_num, output.data));
+                    logger.log(format!("Test {} result: {}", test_num, output.data));
                 }
             }
             Err(e) => {
                 println!("   ❌ Error: {}", e);
-                logger.log(&format!("Test {} error: {}", test_num, e));
+                logger.log(format!("Test {} error: {}", test_num, e));
             }
         }
         println!();
@@ -278,11 +306,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let test_num = 4;
         let desc = "Mixed tools";
         let question = "If it's 22°C in Tokyo and 15°C in London, what's the temperature difference? Use the weather tools to get the actual temperatures.";
-        
+
         println!("🔀 Test {}: {}", test_num, desc);
         println!("   Question: {}", question);
-        logger.log(&format!("Test {}: {} - Question: {}", test_num, desc, question));
-        
+        logger.log(format!(
+            "Test {}: {} - Question: {}",
+            test_num, desc, question
+        ));
+
         let input = AgentInput {
             data: json!(question),
             metadata: AgentInputMetadata {
@@ -290,25 +321,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 previous_agent: None,
             },
         };
-        
-        match agent.execute_with_events(input, Some(runtime.event_stream())).await {
+
+        match agent
+            .execute_with_events(input, Some(runtime.event_stream()))
+            .await
+        {
             Ok(output) => {
                 if let Some(response) = output.data.get("response").and_then(|v| v.as_str()) {
                     println!("   ✅ Response: {}", response);
-                    logger.log(&format!("Test {} result: {}", test_num, response));
+                    logger.log(format!("Test {} result: {}", test_num, response));
                 } else {
                     println!("   ✅ Response: {}", output.data);
-                    logger.log(&format!("Test {} result: {}", test_num, output.data));
+                    logger.log(format!("Test {} result: {}", test_num, output.data));
                 }
             }
             Err(e) => {
                 println!("   ❌ Error: {}", e);
-                logger.log(&format!("Test {} error: {}", test_num, e));
+                logger.log(format!("Test {} error: {}", test_num, e));
             }
         }
         println!();
     }
-    
+
     // Save summary
     println!("💾 Logs and results saved to output/");
     println!("   - agent_with_tools_demo.log (debug log with all events)");

@@ -29,6 +29,12 @@ impl Workflow {
         WorkflowBuilder::new()
     }
 
+    /// Convenience method to create a new workflow with a name
+    /// This is primarily for testing - production code should use builder()
+    pub fn with_name(name: &str) -> WorkflowBuilder {
+        WorkflowBuilder::new().name(name.to_string())
+    }
+
     /// Generate a Mermaid flowchart diagram of this workflow with full expansion
     pub fn to_mermaid(&self) -> String {
         let mut diagram = String::from("flowchart TD\n");
@@ -518,6 +524,7 @@ impl Workflow {
 
 /// Builder for Workflow
 pub struct WorkflowBuilder {
+    name: Option<String>,
     steps: Vec<Box<dyn Step>>,
     initial_input: Option<JsonValue>,
 }
@@ -525,13 +532,26 @@ pub struct WorkflowBuilder {
 impl WorkflowBuilder {
     pub fn new() -> Self {
         Self {
+            name: None,
             steps: Vec::new(),
             initial_input: None,
         }
     }
 
+    /// Set the workflow name/ID
+    pub fn name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
+
     /// Add a step to the workflow
     pub fn step(mut self, step: Box<dyn Step>) -> Self {
+        self.steps.push(step);
+        self
+    }
+
+    /// Add a step to the workflow (alias for better readability)
+    pub fn add_step(mut self, step: Box<dyn Step>) -> Self {
         self.steps.push(step);
         self
     }
@@ -544,7 +564,9 @@ impl WorkflowBuilder {
 
     pub fn build(self) -> Workflow {
         Workflow {
-            id: format!("wf_{}", uuid::Uuid::new_v4()),
+            id: self
+                .name
+                .unwrap_or_else(|| format!("wf_{}", uuid::Uuid::new_v4())),
             steps: self.steps,
             initial_input: self.initial_input.unwrap_or(serde_json::json!({})),
             state: WorkflowState::Pending,

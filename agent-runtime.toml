@@ -1,0 +1,44 @@
+# Agent Runtime Configuration File
+# This file uses TOML format and can be loaded via RuntimeConfig::from_toml_file()
+
+[llm]
+# Default LLM provider
+default_provider = "llama"
+default_model = "qwen/qwen3-30b"
+default_temperature = 0.7
+default_max_tokens = 2048
+
+# OpenAI configuration
+[llm.openai]
+# API key can also be set via OPENAI_API_KEY environment variable
+# api_key = "sk-..."
+api_base = "https://api.openai.com/v1"
+
+# Llama.cpp configuration (for local inference)
+[llm.llama]
+base_url = "http://localhost:1234/v1"
+insecure = false
+
+[retry]
+# Retry policy settings
+max_attempts = 3
+initial_delay_ms = 100
+max_delay_ms = 30000
+backoff_multiplier = 2.0
+jitter_factor = 0.1
+
+[timeout]
+# Timeout settings in milliseconds
+total_ms = 300000        # 5 minutes total timeout
+first_response_ms = 30000 # 30 seconds for first response
+
+[logging]
+# Logging configuration
+level = "info"           # trace, debug, info, warn, error
+directory = "output"
+json_format = false
+
+[workflow]
+# Workflow execution settings
+max_concurrent = 10
+max_tool_iterations = 5

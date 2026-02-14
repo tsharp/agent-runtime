@@ -2,8 +2,9 @@ use async_trait::async_trait;
 use futures::stream::StreamExt;
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
 
-use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult, TextStream};
+use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult};
 
 /// Llama.cpp server client (local or remote)
 ///
@@ -67,6 +68,16 @@ impl LlamaClient {
     /// Create localhost client with insecure HTTPS on custom port
     pub fn localhost_insecure(port: u16) -> Self {
         Self::insecure(format!("https://localhost:{}", port), "llama")
+    }
+
+    /// Get the model name
+    pub fn model(&self) -> &str {
+        &self.model
+    }
+
+    /// Get the provider name
+    pub fn provider(&self) -> &str {
+        "llama.cpp"
     }
 }
 
@@ -145,17 +156,21 @@ impl ChatClient for LlamaClient {
         })
     }
 
-    async fn chat_stream(&self, request: ChatRequest) -> LlmResult<TextStream> {
+    async fn chat_stream(
+        &self,
+        request: ChatRequest,
+        tx: mpsc::Sender<String>,
+    ) -> LlmResult<ChatResponse> {
         let url = format!("{}/v1/chat/completions", self.base_url);
 
         // Build llama.cpp-compatible request with streaming enabled
         let llama_request = LlamaChatRequest {
             model: self.model.clone(),
-            messages: request.messages,
+            messages: request.messages.clone(),
             temperature: request.temperature,
             max_tokens: request.max_tokens,
             top_p: request.top_p,
-            tools: request.tools,
+            tools: request.tools.clone(),
         };
 
         // Send request with streaming
@@ -186,46 +201,35 @@ impl ChatClient for LlamaClient {
             )));
         }
 
-        // Convert byte stream to text chunks
-        let stream = response.bytes_stream();
-        let text_stream = stream.map(|chunk_result| {
-            chunk_result
-                .map_err(|e| LlmError::NetworkError(e.to_string()))
-                .map(|bytes| {
-                    // Parse SSE format: "data: {...}\n\n"
-                    let text = String::from_utf8_lossy(&bytes);
-                    for line in text.lines() {
-                        if let Some(json_str) = line.strip_prefix("data: ") {
-                            if json_str.trim() == "[DONE]" {
-                                continue;
-                            }
-                            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str)
-                            {
-                                if let Some(delta) = parsed
-                                    .get("choices")
-                                    .and_then(|c| c.get(0))
-                                    .and_then(|c| c.get("delta"))
-                                    .and_then(|d| d.get("content"))
-                                    .and_then(|c| c.as_str())
-                                {
-                                    return delta.to_string();
-                                }
-                            }
+        // Convert byte stream to text chunks and send through channel
+        let mut stream = response.bytes_stream();
+        while let Some(chunk_result) = stream.next().await {
+            let bytes = chunk_result.map_err(|e| LlmError::NetworkError(e.to_string()))?;
+
+            // Parse SSE format: "data: {...}\n\n"
+            let text = String::from_utf8_lossy(&bytes);
+            for line in text.lines() {
+                if let Some(json_str) = line.strip_prefix("data: ") {
+                    if json_str.trim() == "[DONE]" {
+                        continue;
+                    }
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
+                        if let Some(delta) = parsed
+                            .get("choices")
+                            .and_then(|c| c.get(0))
+                            .and_then(|c| c.get("delta"))
+                            .and_then(|d| d.get("content"))
+                            .and_then(|c| c.as_str())
+                        {
+                            let _ = tx.send(delta.to_string()).await;
                         }
                     }
-                    String::new()
-                })
-        });
+                }
+            }
+        }
 
-        Ok(Box::pin(text_stream))
-    }
-
-    fn model(&self) -> &str {
-        &self.model
-    }
-
-    fn provider(&self) -> &str {
-        "llama.cpp"
+        // After streaming, make a regular call to get the full response with tool_calls
+        self.chat(request).await
     }
 }
 
@@ -244,7 +248,7 @@ struct LlamaChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     top_p: Option<f32>,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     tools: Option<Vec<serde_json::Value>>,
 }
@@ -266,7 +270,7 @@ struct Choice {
 struct Message {
     #[serde(default)]
     content: String,
-    
+
     #[serde(skip_serializing_if = "Option::is_none")]
     tool_calls: Option<Vec<LlamaToolCall>>,
 }

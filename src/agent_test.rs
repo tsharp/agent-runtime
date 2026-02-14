@@ -43,7 +43,7 @@ mod tests {
             },
         };
 
-        let result = agent.execute(input).await;
+        let result = agent.execute(&input).await;
         assert!(result.is_ok());
 
         let output = result.unwrap();

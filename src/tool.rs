@@ -21,8 +21,9 @@ pub trait Tool: Send + Sync {
     async fn execute(&self, params: HashMap<String, JsonValue>) -> ToolExecutionResult;
 }
 
-type ToolExecutor =
-    Arc<dyn Fn(HashMap<String, JsonValue>) -> BoxFuture<'static, ToolExecutionResult> + Send + Sync>;
+type ToolExecutor = Arc<
+    dyn Fn(HashMap<String, JsonValue>) -> BoxFuture<'static, ToolExecutionResult> + Send + Sync,
+>;
 
 /// A native (in-memory) tool implemented as a Rust async function
 ///
@@ -231,10 +232,10 @@ impl Tool for EchoTool {
             "echoed": message
         });
 
-        Ok(ToolResult {
+        Ok(ToolResult::success(
             output,
-            duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-        })
+            start.elapsed().as_secs_f64() * 1000.0,
+        ))
     }
 }
 
@@ -302,9 +303,9 @@ impl Tool for CalculatorTool {
             }
         };
 
-        Ok(ToolResult {
-            output: serde_json::json!({ "result": result }),
-            duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-        })
+        Ok(ToolResult::success(
+            serde_json::json!({ "result": result }),
+            start.elapsed().as_secs_f64() * 1000.0,
+        ))
     }
 }

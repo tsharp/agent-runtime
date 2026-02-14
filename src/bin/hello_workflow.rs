@@ -12,7 +12,7 @@ async fn main() {
     let mut echo_registry = ToolRegistry::new();
     echo_registry.register(EchoTool);
     let echo_registry = Arc::new(echo_registry);
-    
+
     let mut calc_registry = ToolRegistry::new();
     calc_registry.register(CalculatorTool);
     let calc_registry = Arc::new(calc_registry);

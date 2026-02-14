@@ -35,6 +35,7 @@ pub enum EventType {
     ToolCallStarted,
     ToolCallCompleted,
     ToolCallFailed,
+    AgentToolLoopDetected,
 
     // System events
     SystemError,
