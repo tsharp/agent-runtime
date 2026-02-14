@@ -265,10 +265,10 @@ impl Tool for McpTool {
         
         // Call through to MCP server
         match self.client.call_tool(&self.name, params).await {
-            Ok(output) => Ok(ToolResult {
+            Ok(output) => Ok(ToolResult::success(
                 output,
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            }),
+                start.elapsed().as_secs_f64() * 1000.0,
+            )),
             Err(e) => Err(ToolError::ExecutionFailed(format!("MCP error: {}", e))),
         }
     }

@@ -67,12 +67,76 @@ pub struct ToolCall {
     pub parameters: HashMap<String, JsonValue>,
 }
 
+/// Status of a tool execution
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolStatus {
+    /// Tool executed successfully and returned data
+    Success,
+    
+    /// Tool executed successfully but found no data/results
+    /// This signals to the LLM: "Don't retry, this is a valid empty result"
+    SuccessNoData,
+    
+    /// Tool execution failed
+    Error,
+}
+
+impl Default for ToolStatus {
+    fn default() -> Self {
+        Self::Success
+    }
+}
+
 /// Tool execution result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolResult {
     pub output: JsonValue,
     /// Duration in milliseconds with microsecond precision (e.g., 0.123 ms)
     pub duration_ms: f64,
+    /// Status of the execution
+    #[serde(default)]
+    pub status: ToolStatus,
+    /// Optional message explaining the result
+    pub message: Option<String>,
+}
+
+impl ToolResult {
+    /// Create a successful result with data
+    pub fn success(output: JsonValue, duration_ms: f64) -> Self {
+        Self {
+            output,
+            duration_ms,
+            status: ToolStatus::Success,
+            message: None,
+        }
+    }
+    
+    /// Create a successful result with no data
+    pub fn success_no_data(message: impl Into<String>, duration_ms: f64) -> Self {
+        Self {
+            output: JsonValue::Null,
+            duration_ms,
+            status: ToolStatus::SuccessNoData,
+            message: Some(message.into()),
+        }
+    }
+    
+    /// Create an error result
+    pub fn error(message: impl Into<String>, duration_ms: f64) -> Self {
+        Self {
+            output: JsonValue::Null,
+            duration_ms,
+            status: ToolStatus::Error,
+            message: Some(message.into()),
+        }
+    }
+    
+    /// Add a message to this result
+    pub fn with_message(mut self, message: impl Into<String>) -> Self {
+        self.message = Some(message.into());
+        self
+    }
 }
 
 /// Result type for tool execution

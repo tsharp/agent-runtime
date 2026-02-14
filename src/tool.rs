@@ -231,10 +231,10 @@ impl Tool for EchoTool {
             "echoed": message
         });
 
-        Ok(ToolResult {
+        Ok(ToolResult::success(
             output,
-            duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-        })
+            start.elapsed().as_secs_f64() * 1000.0,
+        ))
     }
 }
 
@@ -302,9 +302,9 @@ impl Tool for CalculatorTool {
             }
         };
 
-        Ok(ToolResult {
-            output: serde_json::json!({ "result": result }),
-            duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-        })
+        Ok(ToolResult::success(
+            serde_json::json!({ "result": result }),
+            start.elapsed().as_secs_f64() * 1000.0,
+        ))
     }
 }

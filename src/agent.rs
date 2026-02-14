@@ -2,7 +2,8 @@ use crate::event::{EventStream, EventType};
 use crate::llm::types::ToolCall;
 use crate::llm::{ChatClient, ChatMessage, ChatRequest};
 use crate::tool::ToolRegistry;
-use crate::types::{AgentError, AgentInput, AgentOutput, AgentOutputMetadata, AgentResult};
+use crate::tool_loop_detection::{ToolCallTracker, ToolLoopDetectionConfig};
+use crate::types::{AgentError, AgentInput, AgentOutput, AgentOutputMetadata, AgentResult, ToolStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -21,6 +22,10 @@ pub struct AgentConfig {
     pub tools: Option<Arc<ToolRegistry>>,
     
     pub max_tool_iterations: usize,
+    
+    /// Tool loop detection configuration
+    #[serde(skip)]
+    pub tool_loop_detection: Option<ToolLoopDetectionConfig>,
 }
 
 impl std::fmt::Debug for AgentConfig {
@@ -30,6 +35,7 @@ impl std::fmt::Debug for AgentConfig {
             .field("system_prompt", &self.system_prompt)
             .field("tools", &self.tools.as_ref().map(|t| format!("{} tools", t.len())))
             .field("max_tool_iterations", &self.max_tool_iterations)
+            .field("tool_loop_detection", &self.tool_loop_detection.as_ref().map(|c| c.enabled))
             .finish()
     }
 }
@@ -41,6 +47,7 @@ impl AgentConfig {
             system_prompt: String::new(),
             tools: None,
             max_tool_iterations: 10,
+            tool_loop_detection: Some(ToolLoopDetectionConfig::default()),
         }
     }
 }
@@ -51,6 +58,7 @@ pub struct AgentConfigBuilder {
     system_prompt: String,
     tools: Option<Arc<ToolRegistry>>,
     max_tool_iterations: usize,
+    tool_loop_detection: Option<ToolLoopDetectionConfig>,
 }
 
 impl AgentConfigBuilder {
@@ -68,6 +76,16 @@ impl AgentConfigBuilder {
         self.max_tool_iterations = max;
         self
     }
+    
+    pub fn tool_loop_detection(mut self, config: ToolLoopDetectionConfig) -> Self {
+        self.tool_loop_detection = Some(config);
+        self
+    }
+    
+    pub fn disable_tool_loop_detection(mut self) -> Self {
+        self.tool_loop_detection = None;
+        self
+    }
 
     pub fn build(self) -> AgentConfig {
         AgentConfig {
@@ -75,6 +93,7 @@ impl AgentConfigBuilder {
             system_prompt: self.system_prompt,
             tools: self.tools,
             max_tool_iterations: self.max_tool_iterations,
+            tool_loop_detection: self.tool_loop_detection,
         }
     }
 }
@@ -160,6 +179,13 @@ impl Agent {
             // Tool calling loop
             let mut iteration = 0;
             let mut total_tool_calls = 0;
+            
+            // Initialize tool call tracker for loop detection
+            let mut tool_tracker = if self.config.tool_loop_detection.is_some() {
+                Some(ToolCallTracker::new())
+            } else {
+                None
+            };
             
             loop {
                 iteration += 1;
@@ -254,19 +280,87 @@ impl Agent {
                                 
                                 // Execute each tool call
                                 for tool_call in tool_calls {
+                                    // Check for duplicate tool call (loop detection)
+                                    if let (Some(tracker), Some(loop_config)) = (&tool_tracker, &self.config.tool_loop_detection) {
+                                        if loop_config.enabled {
+                                            // Parse tool arguments from JSON string
+                                            let args_value: serde_json::Value = serde_json::from_str(&tool_call.function.arguments)
+                                                .unwrap_or(serde_json::json!({}));
+                                            
+                                            // Convert to HashMap for comparison
+                                            let args_map: HashMap<String, serde_json::Value> = args_value
+                                                .as_object()
+                                                .map(|obj| {
+                                                    obj.iter()
+                                                        .map(|(k, v)| (k.clone(), v.clone()))
+                                                        .collect()
+                                                })
+                                                .unwrap_or_default();
+                                            
+                                            if let Some(previous_result) = tracker.check_for_loop(&tool_call.function.name, &args_map) {
+                                                // Loop detected! Inject message instead of calling tool
+                                                let loop_message = loop_config.get_message(&tool_call.function.name, &previous_result);
+                                                
+                                                // Emit loop detected event
+                                                if let Some(stream) = event_stream {
+                                                    stream.append(
+                                                        EventType::AgentToolLoopDetected,
+                                                        input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
+                                                        serde_json::json!({
+                                                            "agent": self.config.name,
+                                                            "tool": tool_call.function.name,
+                                                            "message": loop_message,
+                                                        }),
+                                                    );
+                                                }
+                                                
+                                                // Add system message explaining the loop
+                                                let tool_msg = ChatMessage::tool_result(
+                                                    &tool_call.id,
+                                                    &loop_message
+                                                );
+                                                request.messages.push(tool_msg);
+                                                
+                                                // Skip actual tool execution
+                                                continue;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // No loop detected - execute the tool normally
                                     let tool_result = self.execute_tool_call(
                                         &tool_call,
                                         &input.metadata.previous_agent.clone().unwrap_or_else(|| "workflow".to_string()),
                                         event_stream
                                     ).await;
+                                    
+                                    // Record this call in the tracker
+                                    if let Some(tracker) = &mut tool_tracker {
+                                        // Parse tool arguments from JSON string
+                                        let args_value: serde_json::Value = serde_json::from_str(&tool_call.function.arguments)
+                                            .unwrap_or(serde_json::json!({}));
+                                        
+                                        // Convert to HashMap
+                                        let args_map: HashMap<String, serde_json::Value> = args_value
+                                            .as_object()
+                                            .map(|obj| {
+                                                obj.iter()
+                                                    .map(|(k, v)| (k.clone(), v.clone()))
+                                                    .collect()
+                                            })
+                                            .unwrap_or_default();
+                                        
+                                        let result_json = serde_json::to_value(&tool_result).unwrap_or(serde_json::json!({}));
+                                        tracker.record_call(&tool_call.function.name, &args_map, &result_json);
+                                    }
                                 
-                                // Add tool result to conversation
-                                let tool_msg = ChatMessage::tool_result(
-                                    &tool_call.id,
-                                    &tool_result
-                                );
-                                request.messages.push(tool_msg);
-                            }
+                                    // Add tool result to conversation
+                                    let tool_msg = ChatMessage::tool_result(
+                                        &tool_call.id,
+                                        &tool_result
+                                    );
+                                    request.messages.push(tool_msg);
+                                }
                             
                             // Continue loop to get next response
                             continue;

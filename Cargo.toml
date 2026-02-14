@@ -44,6 +44,13 @@ dashmap = "5.5"
 parking_lot = "0.12"
 futures = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"
+md5 = "0.7"
+
+# Configuration
+config = "0.14"
+toml = "0.8"
+serde_yaml = "0.9"
 
 # MCP - Model Context Protocol
 rust-mcp-sdk = { version = "0.8", features = ["client"] }
