@@ -40,10 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .ok_or_else(|| ToolError::InvalidParameters("'a' must be a number".into()))?;
             let b = params.get("b").and_then(|v| v.as_f64())
                 .ok_or_else(|| ToolError::InvalidParameters("'b' must be a number".into()))?;
-            Ok(ToolResult {
-                output: json!({ "result": a + b }),
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            })
+            let duration = start.elapsed().as_secs_f64() * 1000.0;
+            Ok(ToolResult::success(json!({ "result": a + b }), duration))
         },
     ));
 
@@ -64,10 +62,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .ok_or_else(|| ToolError::InvalidParameters("'a' must be a number".into()))?;
             let b = params.get("b").and_then(|v| v.as_f64())
                 .ok_or_else(|| ToolError::InvalidParameters("'b' must be a number".into()))?;
-            Ok(ToolResult {
-                output: json!({ "result": a * b }),
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            })
+            let duration = start.elapsed().as_secs_f64() * 1000.0;
+            Ok(ToolResult::success(json!({ "result": a * b }), duration))
         },
     ));
 
@@ -93,11 +89,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "new york" => "Cloudy, 18°C",
                 _ => "Unknown, check weather.com",
             };
+            let duration = start.elapsed().as_secs_f64() * 1000.0;
             
-            Ok(ToolResult {
-                output: json!({ "weather": weather, "city": city }),
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            })
+            Ok(ToolResult::success(json!({ "weather": weather, "city": city }), duration))
         },
     ));
 
@@ -316,3 +310,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+

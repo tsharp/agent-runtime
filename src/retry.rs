@@ -104,15 +104,15 @@ impl RetryPolicy {
     /// # Example
     /// ```no_run
     /// use agent_runtime::retry::RetryPolicy;
-    /// use agent_runtime::LlmError;
+    /// use agent_runtime::{RuntimeError, LlmError};
     ///
-    /// # async fn example() -> Result<String, LlmError> {
+    /// # async fn example() -> Result<String, RuntimeError> {
     /// let policy = RetryPolicy::default();
     /// let result = policy.execute(
     ///     "fetch_data",
     ///     || async {
-    ///         // Your operation here
-    ///         Ok("success".to_string())
+    ///         // Your operation here - returns Result<T, impl Into<RuntimeError>>
+    ///         Ok::<String, LlmError>("success".to_string())
     ///     }
     /// ).await?;
     /// # Ok(result)

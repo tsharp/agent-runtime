@@ -126,8 +126,8 @@ impl Agent {
     }
 
     /// Execute the agent with the given input
-    pub async fn execute(&self, input: AgentInput) -> AgentResult {
-        self.execute_with_events(input, None).await
+    pub async fn execute(&self, input: &AgentInput) -> AgentResult {
+        self.execute_with_events(input.clone(), None).await
     }
 
     /// Execute the agent with event stream for observability
@@ -214,7 +214,6 @@ impl Agent {
                             .unwrap_or_else(|| "workflow".to_string()),
                         serde_json::json!({
                             "agent": self.config.name,
-                            "provider": client.provider(),
                             "iteration": iteration,
                         }),
                     );
@@ -229,22 +228,26 @@ impl Agent {
                     .clone()
                     .unwrap_or_else(|| "workflow".to_string());
                 
-                let chunk_callback = Box::new(move |chunk: String| {
-                    // Emit chunk event for real-time streaming
-                    if let Some(stream) = &event_stream_for_streaming {
-                        stream.append(
-                            EventType::AgentLlmStreamChunk,
-                            previous_agent.clone(),
-                            serde_json::json!({
-                                "agent": &agent_name,
-                                "chunk": chunk,
-                            }),
-                        );
+                // Create channel for streaming chunks
+                let (chunk_tx, mut chunk_rx) = tokio::sync::mpsc::channel(100);
+                
+                // Spawn task to receive chunks and emit events
+                let chunk_event_task = tokio::spawn(async move {
+                    while let Some(chunk) = chunk_rx.recv().await {
+                        if let Some(stream) = &event_stream_for_streaming {
+                            stream.append(
+                                EventType::AgentLlmStreamChunk,
+                                previous_agent.clone(),
+                                serde_json::json!({
+                                    "agent": &agent_name,
+                                    "chunk": chunk,
+                                }),
+                            );
+                        }
                     }
                 });
                 
-                
-                match client.chat_stream_complete(request.clone(), chunk_callback).await {
+                match client.chat_stream(request.clone(), chunk_tx).await {
                     Ok(response) => {
                         
                         // Emit LLM request completed event

@@ -24,6 +24,35 @@ pub struct AgentInput {
     pub metadata: AgentInputMetadata,
 }
 
+impl AgentInput {
+    /// Create a new AgentInput from a text string
+    pub fn from_text(text: impl Into<String>) -> Self {
+        Self {
+            data: serde_json::json!(text.into()),
+            metadata: AgentInputMetadata {
+                step_index: 0,
+                previous_agent: None,
+            },
+        }
+    }
+
+    /// Create a new AgentInput from any JSON-serializable value
+    pub fn from_value(value: JsonValue) -> Self {
+        Self {
+            data: value,
+            metadata: AgentInputMetadata {
+                step_index: 0,
+                previous_agent: None,
+            },
+        }
+    }
+
+    /// Create a new AgentInput with metadata
+    pub fn with_metadata(data: JsonValue, metadata: AgentInputMetadata) -> Self {
+        Self { data, metadata }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInputMetadata {
     pub step_index: usize,

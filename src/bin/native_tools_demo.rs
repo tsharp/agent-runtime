@@ -36,11 +36,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .ok_or_else(|| ToolError::InvalidParameters("'b' must be a number".into()))?;
 
             let result = a + b;
+            let duration = start.elapsed().as_secs_f64() * 1000.0;
 
-            Ok(ToolResult {
-                output: json!({ "result": result }),
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            })
+            Ok(ToolResult::success(json!({ "result": result }), duration))
         },
     ));
 
@@ -64,11 +62,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .ok_or_else(|| ToolError::InvalidParameters("'text' must be a string".into()))?;
 
             let result = text.to_uppercase();
+            let duration = start.elapsed().as_secs_f64() * 1000.0;
 
-            Ok(ToolResult {
-                output: json!({ "result": result }),
-                duration_ms: start.elapsed().as_secs_f64() * 1000.0,
-            })
+            Ok(ToolResult::success(json!({ "result": result }), duration))
         },
     ));
 

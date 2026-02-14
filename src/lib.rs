@@ -39,3 +39,17 @@ pub use tool_loop_detection::{ToolCallTracker, ToolLoopDetectionConfig};
 pub use tools::{McpClient, McpTool, McpToolInfo};
 pub use types::*;
 pub use workflow::{Workflow, WorkflowBuilder, WorkflowState};
+
+// Prelude module for convenient imports in tests and examples
+pub mod prelude {
+    pub use crate::agent::{Agent, AgentConfig};
+    pub use crate::event::{Event, EventStream, EventType};
+    pub use crate::llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};
+    pub use crate::step_impls::{AgentStep, ConditionalStep, SubWorkflowStep, TransformStep};
+    pub use crate::tool::{NativeTool, Tool, ToolRegistry};
+    pub use crate::types::{AgentInput, AgentOutput, ToolResult, ToolStatus};
+    pub use crate::workflow::Workflow;
+    
+    #[cfg(test)]
+    pub use crate::llm::{MockLlmClient, MockResponse, MockToolCall};
+}
