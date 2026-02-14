@@ -6,7 +6,7 @@ use std::path::Path;
 use std::time::Duration;
 
 /// Main runtime configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RuntimeConfig {
     /// LLM provider configurations
     #[serde(default)]
@@ -27,18 +27,6 @@ pub struct RuntimeConfig {
     /// Workflow configuration
     #[serde(default)]
     pub workflow: WorkflowConfig,
-}
-
-impl Default for RuntimeConfig {
-    fn default() -> Self {
-        Self {
-            llm: LlmConfig::default(),
-            retry: RetryConfig::default(),
-            timeout: TimeoutConfigSettings::default(),
-            logging: LoggingConfig::default(),
-            workflow: WorkflowConfig::default(),
-        }
-    }
 }
 
 impl RuntimeConfig {
@@ -203,7 +191,7 @@ impl Default for LlmConfig {
 impl LlmConfig {
     fn validate(&self) -> Result<(), ConfigError> {
         if let Some(temp) = Some(self.default_temperature) {
-            if temp < 0.0 || temp > 2.0 {
+            if !(0.0..=2.0).contains(&temp) {
                 return Err(ConfigError {
                     code: ConfigErrorCode::InvalidValue,
                     message: "Temperature must be between 0.0 and 2.0".to_string(),
@@ -486,8 +474,10 @@ logging:
 
     #[test]
     fn test_validation_invalid_temperature() {
-        let mut config = LlmConfig::default();
-        config.default_temperature = 3.0; // Invalid
+        let config = LlmConfig {
+            default_temperature: 3.0,
+            ..Default::default()
+        };
 
         let result = config.validate();
         assert!(result.is_err());
@@ -495,8 +485,10 @@ logging:
 
     #[test]
     fn test_validation_invalid_jitter() {
-        let mut config = RetryConfig::default();
-        config.jitter_factor = 1.5; // Invalid
+        let config = RetryConfig {
+            jitter_factor: 1.5,
+            ..Default::default()
+        };
 
         let result = config.validate();
         assert!(result.is_err());

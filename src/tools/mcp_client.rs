@@ -147,7 +147,6 @@ impl McpClient {
             arguments: Some(
                 arguments
                     .into_iter()
-                    .map(|(k, v)| (k, v))
                     .collect::<serde_json::Map<String, JsonValue>>(),
             ),
             meta: None,
@@ -165,7 +164,7 @@ impl McpClient {
             if let Ok(text_content) = content.as_text_content() {
                 Ok(JsonValue::String(text_content.text.clone()))
             } else {
-                Ok(serde_json::to_value(&content)
+                Ok(serde_json::to_value(content)
                     .map_err(|e| format!("Failed to serialize result: {}", e))?)
             }
         } else {

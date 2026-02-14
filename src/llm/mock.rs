@@ -1,9 +1,11 @@
-use crate::llm::types::{
-    ChatMessage, ChatRequest, ChatResponse, FunctionCall, Role, ToolCall, Usage,
-};
+#[cfg(test)]
+use crate::llm::types::ChatMessage;
+use crate::llm::types::{ChatRequest, ChatResponse, FunctionCall, ToolCall, Usage};
 use crate::llm::{ChatClient, LlmError};
 use async_trait::async_trait;
-use serde_json::{json, Value};
+#[cfg(test)]
+use serde_json::json;
+use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 ///
@@ -32,6 +34,12 @@ pub struct MockResponse {
 pub struct MockToolCall {
     pub name: String,
     pub arguments: Value,
+}
+
+impl Default for MockLlmClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockLlmClient {
@@ -79,7 +87,7 @@ impl MockLlmClient {
     }
 
     /// Add a text response to the chain
-    pub fn with_response(mut self, text: &str) -> Self {
+    pub fn with_response(self, text: &str) -> Self {
         self.responses
             .lock()
             .unwrap()
@@ -88,7 +96,7 @@ impl MockLlmClient {
     }
 
     /// Add a tool call response to the chain
-    pub fn with_tool_call(mut self, tool_name: &str, args: Value) -> Self {
+    pub fn with_tool_call(self, tool_name: &str, args: Value) -> Self {
         self.responses
             .lock()
             .unwrap()

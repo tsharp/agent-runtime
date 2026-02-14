@@ -91,7 +91,7 @@ async fn main() {
             // Log all events to file
             logger_for_events.log_level(
                 &format!("{:?}", event.event_type),
-                &serde_json::to_string(&event.data).unwrap_or_default(),
+                serde_json::to_string(&event.data).unwrap_or_default(),
             );
 
             match event.event_type {
@@ -138,10 +138,7 @@ async fn main() {
 
     let result = runtime.execute(workflow).await;
 
-    logger.log(&format!(
-        "Workflow completed. Steps: {}",
-        result.steps.len()
-    ));
+    logger.log(format!("Workflow completed. Steps: {}", result.steps.len()));
 
     // Wait for event task to finish
     let _ = event_task.await;

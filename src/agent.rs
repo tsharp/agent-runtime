@@ -3,9 +3,7 @@ use crate::llm::types::ToolCall;
 use crate::llm::{ChatClient, ChatMessage, ChatRequest};
 use crate::tool::ToolRegistry;
 use crate::tool_loop_detection::{ToolCallTracker, ToolLoopDetectionConfig};
-use crate::types::{
-    AgentError, AgentInput, AgentOutput, AgentOutputMetadata, AgentResult, ToolStatus,
-};
+use crate::types::{AgentError, AgentInput, AgentOutput, AgentOutputMetadata, AgentResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -243,7 +241,7 @@ impl Agent {
                 let (chunk_tx, mut chunk_rx) = tokio::sync::mpsc::channel(100);
 
                 // Spawn task to receive chunks and emit events
-                let chunk_event_task = tokio::spawn(async move {
+                let _chunk_event_task = tokio::spawn(async move {
                     while let Some(chunk) = chunk_rx.recv().await {
                         if let Some(stream) = &event_stream_for_streaming {
                             stream.append(

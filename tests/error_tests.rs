@@ -2,7 +2,7 @@ use agent_runtime::prelude::TypesToolError as ToolError;
 /// Comprehensive error handling tests
 /// Tests various failure scenarios and recovery mechanisms
 use agent_runtime::prelude::*;
-use agent_runtime::{Agent, AgentConfig, AgentInput, NativeTool, RuntimeError, ToolRegistry};
+use agent_runtime::{Agent, AgentConfig, AgentInput, NativeTool, ToolRegistry};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -227,7 +227,7 @@ async fn test_tool_not_found() {
         .with_tool_call("nonexistent_tool", json!({}))
         .with_response("Handled missing tool");
 
-    let mut registry = ToolRegistry::new();
+    let registry = ToolRegistry::new();
     // Registry is empty, tool doesn't exist
 
     let config = AgentConfig::builder("test_agent")

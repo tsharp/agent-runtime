@@ -7,7 +7,6 @@ use agent_runtime::tool::{NativeTool, ToolRegistry};
 use agent_runtime::types::ToolResult;
 use serde_json::json;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 
 // === Helper Functions ===
 

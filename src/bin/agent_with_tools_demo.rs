@@ -122,7 +122,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("🦙 Connecting to llama.cpp at {}", base_url);
     println!("   Model: {}\n", model);
-    logger.log(&format!(
+    logger.log(format!(
         "Connecting to llama.cpp at {} (model: {})",
         base_url, model
     ));
@@ -140,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Log all events to file
             logger_for_events.log_level(
                 &format!("{:?}", event.event_type),
-                &serde_json::to_string(&event.data).unwrap_or_default(),
+                serde_json::to_string(&event.data).unwrap_or_default(),
             );
 
             // Print tool call events to console
@@ -183,7 +183,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("🧮 Test {}: {}", test_num, desc);
         println!("   Question: {}", question);
-        logger.log(&format!(
+        logger.log(format!(
             "Test {}: {} - Question: {}",
             test_num, desc, question
         ));
@@ -203,15 +203,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(output) => {
                 if let Some(response) = output.data.get("response").and_then(|v| v.as_str()) {
                     println!("   ✅ Response: {}", response);
-                    logger.log(&format!("Test {} result: {}", test_num, response));
+                    logger.log(format!("Test {} result: {}", test_num, response));
                 } else {
                     println!("   ✅ Response: {}", output.data);
-                    logger.log(&format!("Test {} result: {}", test_num, output.data));
+                    logger.log(format!("Test {} result: {}", test_num, output.data));
                 }
             }
             Err(e) => {
                 println!("   ❌ Error: {}", e);
-                logger.log(&format!("Test {} error: {}", test_num, e));
+                logger.log(format!("Test {} error: {}", test_num, e));
             }
         }
         println!();
@@ -225,7 +225,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("🧮 Test {}: {}", test_num, desc);
         println!("   Question: {}", question);
-        logger.log(&format!(
+        logger.log(format!(
             "Test {}: {} - Question: {}",
             test_num, desc, question
         ));
@@ -245,15 +245,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(output) => {
                 if let Some(response) = output.data.get("response").and_then(|v| v.as_str()) {
                     println!("   ✅ Response: {}", response);
-                    logger.log(&format!("Test {} result: {}", test_num, response));
+                    logger.log(format!("Test {} result: {}", test_num, response));
                 } else {
                     println!("   ✅ Response: {}", output.data);
-                    logger.log(&format!("Test {} result: {}", test_num, output.data));
+                    logger.log(format!("Test {} result: {}", test_num, output.data));
                 }
             }
             Err(e) => {
                 println!("   ❌ Error: {}", e);
-                logger.log(&format!("Test {} error: {}", test_num, e));
+                logger.log(format!("Test {} error: {}", test_num, e));
             }
         }
         println!();
@@ -267,7 +267,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("🌤️  Test {}: {}", test_num, desc);
         println!("   Question: {}", question);
-        logger.log(&format!(
+        logger.log(format!(
             "Test {}: {} - Question: {}",
             test_num, desc, question
         ));
@@ -287,15 +287,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(output) => {
                 if let Some(response) = output.data.get("response").and_then(|v| v.as_str()) {
                     println!("   ✅ Response: {}", response);
-                    logger.log(&format!("Test {} result: {}", test_num, response));
+                    logger.log(format!("Test {} result: {}", test_num, response));
                 } else {
                     println!("   ✅ Response: {}", output.data);
-                    logger.log(&format!("Test {} result: {}", test_num, output.data));
+                    logger.log(format!("Test {} result: {}", test_num, output.data));
                 }
             }
             Err(e) => {
                 println!("   ❌ Error: {}", e);
-                logger.log(&format!("Test {} error: {}", test_num, e));
+                logger.log(format!("Test {} error: {}", test_num, e));
             }
         }
         println!();
@@ -309,7 +309,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("🔀 Test {}: {}", test_num, desc);
         println!("   Question: {}", question);
-        logger.log(&format!(
+        logger.log(format!(
             "Test {}: {} - Question: {}",
             test_num, desc, question
         ));
@@ -329,15 +329,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(output) => {
                 if let Some(response) = output.data.get("response").and_then(|v| v.as_str()) {
                     println!("   ✅ Response: {}", response);
-                    logger.log(&format!("Test {} result: {}", test_num, response));
+                    logger.log(format!("Test {} result: {}", test_num, response));
                 } else {
                     println!("   ✅ Response: {}", output.data);
-                    logger.log(&format!("Test {} result: {}", test_num, output.data));
+                    logger.log(format!("Test {} result: {}", test_num, output.data));
                 }
             }
             Err(e) => {
                 println!("   ❌ Error: {}", e);
-                logger.log(&format!("Test {} error: {}", test_num, e));
+                logger.log(format!("Test {} error: {}", test_num, e));
             }
         }
         println!();

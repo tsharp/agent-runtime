@@ -97,10 +97,11 @@ pub struct ToolCall {
 }
 
 /// Status of a tool execution
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolStatus {
     /// Tool executed successfully and returned data
+    #[default]
     Success,
 
     /// Tool executed successfully but found no data/results
@@ -109,12 +110,6 @@ pub enum ToolStatus {
 
     /// Tool execution failed
     Error,
-}
-
-impl Default for ToolStatus {
-    fn default() -> Self {
-        Self::Success
-    }
 }
 
 /// Tool execution result

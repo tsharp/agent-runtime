@@ -216,7 +216,7 @@ fn bench_concurrent_agents(c: &mut Criterion) {
                             let response_text = format!("Response from agent {}", i);
                             let mock_client = MockLlmClient::new().with_response(&response_text);
 
-                            let config = AgentConfig::builder(&format!("agent_{}", i))
+                            let config = AgentConfig::builder(format!("agent_{}", i))
                                 .system_prompt("Test agent")
                                 .build();
 
@@ -249,7 +249,7 @@ fn bench_tool_loop_detection(c: &mut Criterion) {
                 .with_response("Result");
 
             let mut registry = ToolRegistry::new();
-            registry.register(NativeTool::new("calculator", "Math", json!({}), |args| {
+            registry.register(NativeTool::new("calculator", "Math", json!({}), |_args| {
                 Box::pin(async move {
                     let start = std::time::Instant::now();
                     let duration = start.elapsed().as_secs_f64() * 1000.0;

@@ -31,7 +31,7 @@ impl Workflow {
 
     /// Convenience method to create a new workflow with a name
     /// This is primarily for testing - production code should use builder()
-    pub fn new(name: &str) -> WorkflowBuilder {
+    pub fn with_name(name: &str) -> WorkflowBuilder {
         WorkflowBuilder::new().name(name.to_string())
     }
 

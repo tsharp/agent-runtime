@@ -2,7 +2,7 @@
 /// Tests system behavior under concurrent load
 use agent_runtime::prelude::*;
 use agent_runtime::{
-    Agent, AgentConfig, AgentInput, NativeTool, Runtime, ToolRegistry, Workflow, WorkflowBuilder,
+    Agent, AgentConfig, AgentInput, NativeTool, Runtime, ToolRegistry, WorkflowBuilder,
 };
 use serde_json::json;
 use std::sync::atomic::{AtomicUsize, Ordering};
