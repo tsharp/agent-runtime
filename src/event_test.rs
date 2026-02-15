@@ -11,25 +11,31 @@ mod tests {
         assert_eq!(stream.current_offset(), 0);
     }
 
-    #[test]
-    fn test_event_stream_append() {
+    #[tokio::test]
+    async fn test_event_stream_append() {
         let stream = EventStream::new();
 
-        let event = stream.append(
-            EventType::WorkflowStarted,
-            "wf_123".to_string(),
-            json!({"step_count": 3}),
-        );
+        let event = stream
+            .append(
+                EventType::WorkflowStarted,
+                "wf_123".to_string(),
+                json!({"step_count": 3}),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(event.offset, 0);
         assert_eq!(event.event_type, EventType::WorkflowStarted);
         assert_eq!(event.workflow_id, "wf_123");
+
+        // Give async task time to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         assert_eq!(stream.len(), 1);
         assert_eq!(stream.current_offset(), 1);
     }
 
-    #[test]
-    fn test_event_stream_multiple_events() {
+    #[tokio::test]
+    async fn test_event_stream_multiple_events() {
         let stream = EventStream::new();
 
         stream.append(EventType::WorkflowStarted, "wf_123".to_string(), json!({}));
@@ -46,12 +52,14 @@ mod tests {
             json!({"step_index": 0}),
         );
 
+        // Give async tasks time to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
         assert_eq!(stream.len(), 3);
         assert_eq!(stream.current_offset(), 3);
     }
 
-    #[test]
-    fn test_event_stream_from_offset() {
+    #[tokio::test]
+    async fn test_event_stream_from_offset() {
         let stream = EventStream::new();
 
         stream.append(EventType::WorkflowStarted, "wf_123".to_string(), json!({}));
@@ -65,6 +73,9 @@ mod tests {
             "wf_123".to_string(),
             json!({}),
         );
+
+        // Give async tasks time to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         let events = stream.from_offset(1);
         assert_eq!(events.len(), 2);
@@ -72,8 +83,8 @@ mod tests {
         assert_eq!(events[1].offset, 2);
     }
 
-    #[test]
-    fn test_event_stream_all() {
+    #[tokio::test]
+    async fn test_event_stream_all() {
         let stream = EventStream::new();
 
         stream.append(EventType::WorkflowStarted, "wf_123".to_string(), json!({}));
@@ -82,6 +93,9 @@ mod tests {
             "wf_123".to_string(),
             json!({}),
         );
+
+        // Give async tasks time to complete
+        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         let all_events = stream.all();
         assert_eq!(all_events.len(), 2);
@@ -109,16 +123,19 @@ mod tests {
         assert_eq!(event.workflow_id, "wf_test");
     }
 
-    #[test]
-    fn test_event_with_parent() {
+    #[tokio::test]
+    async fn test_event_with_parent() {
         let stream = EventStream::new();
 
-        let event = stream.append_with_parent(
-            EventType::WorkflowStarted,
-            "wf_child".to_string(),
-            Some("wf_parent".to_string()),
-            json!({}),
-        );
+        let event = stream
+            .append_with_parent(
+                EventType::WorkflowStarted,
+                "wf_child".to_string(),
+                Some("wf_parent".to_string()),
+                json!({}),
+            )
+            .await
+            .unwrap();
 
         assert_eq!(event.parent_workflow_id, Some("wf_parent".to_string()));
     }

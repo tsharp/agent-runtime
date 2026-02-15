@@ -126,35 +126,73 @@ impl EventStream {
     }
 
     /// Append a new event and broadcast to all subscribers
-    pub fn append(&self, event_type: EventType, workflow_id: WorkflowId, data: JsonValue) -> Event {
+    ///
+    /// Events are emitted asynchronously in a spawned task to avoid blocking
+    /// agent execution. Returns a JoinHandle that can be awaited if the caller
+    /// needs to ensure the event was processed or needs the Event object.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// use agent_runtime::event::{EventStream, EventType};
+    /// use serde_json::json;
+    ///
+    /// # async fn example() {
+    /// let stream = EventStream::new();
+    ///
+    /// // Fire and forget (most common)
+    /// stream.append(EventType::AgentInitialized, "workflow_1".to_string(), json!({}));
+    ///
+    /// // Wait for event if needed
+    /// let event = stream.append(EventType::AgentCompleted, "workflow_1".to_string(), json!({}))
+    ///     .await
+    ///     .unwrap();
+    /// # }
+    /// ```
+    pub fn append(
+        &self,
+        event_type: EventType,
+        workflow_id: WorkflowId,
+        data: JsonValue,
+    ) -> tokio::task::JoinHandle<Event> {
         self.append_with_parent(event_type, workflow_id, None, data)
     }
 
     /// Append event with optional parent workflow ID
+    ///
+    /// Events are emitted asynchronously to avoid blocking execution.
+    /// Returns a JoinHandle that resolves to the created Event.
     pub fn append_with_parent(
         &self,
         event_type: EventType,
         workflow_id: WorkflowId,
         parent_workflow_id: Option<WorkflowId>,
         data: JsonValue,
-    ) -> Event {
-        // Get and increment offset atomically
-        let offset = {
-            let mut next_offset = self.next_offset.write().unwrap();
-            let current = *next_offset;
-            *next_offset += 1;
-            current
-        };
+    ) -> tokio::task::JoinHandle<Event> {
+        let sender = self.sender.clone();
+        let history = self.history.clone();
+        let next_offset = self.next_offset.clone();
 
-        let event = Event::with_parent(offset, event_type, workflow_id, parent_workflow_id, data);
+        // Spawn async task - never blocks the caller
+        tokio::spawn(async move {
+            // Get and increment offset atomically
+            let offset = {
+                let mut next_offset = next_offset.write().unwrap();
+                let current = *next_offset;
+                *next_offset += 1;
+                current
+            };
 
-        // Store in history
-        self.history.write().unwrap().push(event.clone());
+            let event =
+                Event::with_parent(offset, event_type, workflow_id, parent_workflow_id, data);
 
-        // Broadcast to subscribers (ignore if no active receivers)
-        let _ = self.sender.send(event.clone());
+            // Store in history
+            history.write().unwrap().push(event.clone());
 
-        event
+            // Broadcast to subscribers (ignore if no active receivers)
+            let _ = sender.send(event.clone());
+
+            event
+        })
     }
 
     /// Subscribe to real-time event stream
