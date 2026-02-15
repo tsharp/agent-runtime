@@ -162,16 +162,24 @@ impl Agent {
 
         // If we have an LLM client, use it
         if let Some(client) = &self.llm_client {
-            // Convert input to user message
-            let user_message = if let Some(s) = input.data.as_str() {
-                s.to_string()
+            // Build messages from chat_history OR from input data
+            let messages = if let Some(history) = &input.chat_history {
+                // Use provided chat history as-is
+                // Outer layer is managing the conversation context
+                history.clone()
             } else {
-                serde_json::to_string_pretty(&input.data).unwrap_or_default()
-            };
+                // Build messages from scratch (legacy behavior)
+                let user_message = if let Some(s) = input.data.as_str() {
+                    s.to_string()
+                } else {
+                    serde_json::to_string_pretty(&input.data).unwrap_or_default()
+                };
 
-            // Build messages with system prompt
-            let mut messages = vec![ChatMessage::system(&self.config.system_prompt)];
-            messages.push(ChatMessage::user(&user_message));
+                vec![
+                    ChatMessage::system(&self.config.system_prompt),
+                    ChatMessage::user(&user_message),
+                ]
+            };
 
             let mut request = ChatRequest::new(messages.clone())
                 .with_temperature(0.7)
@@ -415,6 +423,9 @@ impl Agent {
                             "token_count": token_count,
                         });
 
+                        // Add final assistant response to chat history
+                        request.messages.push(ChatMessage::assistant(response_text));
+
                         // Emit agent completed event
                         if let Some(stream) = event_stream {
                             stream.append(
@@ -438,6 +449,7 @@ impl Agent {
                                 execution_time_ms: start.elapsed().as_millis() as u64,
                                 tool_calls_count: total_tool_calls,
                             },
+                            chat_history: Some(request.messages),
                         });
                     }
                     Err(e) => {
@@ -512,6 +524,7 @@ impl Agent {
                     execution_time_ms: start.elapsed().as_millis() as u64,
                     tool_calls_count: 0,
                 },
+                chat_history: None, // No LLM client means no chat history
             })
         }
     }

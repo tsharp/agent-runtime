@@ -13,6 +13,7 @@ mod tests {
                 step_index: 0,
                 previous_agent: None,
             },
+            chat_history: None,
         };
 
         assert_eq!(input.metadata.step_index, 0);
@@ -29,6 +30,7 @@ mod tests {
                 execution_time_ms: 100,
                 tool_calls_count: 2,
             },
+            chat_history: None,
         };
 
         assert_eq!(output.metadata.agent_name, "test_agent");

@@ -41,6 +41,7 @@ mod tests {
                 step_index: 0,
                 previous_agent: None,
             },
+            chat_history: None,
         };
 
         let result = agent.execute(&input).await;

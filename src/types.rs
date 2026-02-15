@@ -22,6 +22,12 @@ pub type JsonValue = serde_json::Value;
 pub struct AgentInput {
     pub data: JsonValue,
     pub metadata: AgentInputMetadata,
+
+    /// Optional pre-built chat history. If provided, this is used directly
+    /// instead of building messages from data. Allows outer layer to manage
+    /// conversation context across multiple agent calls.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chat_history: Option<Vec<crate::llm::types::ChatMessage>>,
 }
 
 impl AgentInput {
@@ -33,6 +39,7 @@ impl AgentInput {
                 step_index: 0,
                 previous_agent: None,
             },
+            chat_history: None,
         }
     }
 
@@ -44,12 +51,57 @@ impl AgentInput {
                 step_index: 0,
                 previous_agent: None,
             },
+            chat_history: None,
         }
     }
 
     /// Create a new AgentInput with metadata
     pub fn with_metadata(data: JsonValue, metadata: AgentInputMetadata) -> Self {
-        Self { data, metadata }
+        Self {
+            data,
+            metadata,
+            chat_history: None,
+        }
+    }
+
+    /// Create a new AgentInput from existing chat messages
+    /// This allows the outer layer to manage conversation history and context.
+    ///
+    /// # Example
+    /// ```
+    /// use agent_runtime::{AgentInput, ChatMessage};
+    ///
+    /// let mut history = vec![
+    ///     ChatMessage::system("You are a helpful assistant"),
+    ///     ChatMessage::user("What's 2+2?"),
+    ///     ChatMessage::assistant("4"),
+    ///     ChatMessage::user("What about 3+3?"),
+    /// ];
+    ///
+    /// let input = AgentInput::from_messages(history);
+    /// // Agent will continue this conversation
+    /// ```
+    pub fn from_messages(messages: Vec<crate::llm::types::ChatMessage>) -> Self {
+        Self {
+            data: serde_json::Value::Null, // Not used when messages provided
+            metadata: AgentInputMetadata {
+                step_index: 0,
+                previous_agent: None,
+            },
+            chat_history: Some(messages),
+        }
+    }
+
+    /// Create a new AgentInput from chat messages with custom metadata
+    pub fn from_messages_with_metadata(
+        messages: Vec<crate::llm::types::ChatMessage>,
+        metadata: AgentInputMetadata,
+    ) -> Self {
+        Self {
+            data: serde_json::Value::Null,
+            metadata,
+            chat_history: Some(messages),
+        }
     }
 }
 
@@ -64,6 +116,15 @@ pub struct AgentInputMetadata {
 pub struct AgentOutput {
     pub data: JsonValue,
     pub metadata: AgentOutputMetadata,
+
+    /// The complete chat history after agent execution.
+    /// This includes all messages (system, user, assistant, tool) that were
+    /// part of the conversation. Useful for:
+    /// - Continuing multi-turn conversations
+    /// - Saving and resuming agent state
+    /// - Debugging agent behavior
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chat_history: Option<Vec<crate::llm::types::ChatMessage>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
