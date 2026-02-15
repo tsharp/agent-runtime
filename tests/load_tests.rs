@@ -18,13 +18,13 @@ async fn test_concurrent_agents_10() {
             let response_text = format!("Response {}", i);
             let mock_client = MockLlmClient::new().with_response(&response_text);
 
-            let config = AgentConfig::builder(&format!("agent_{}", i))
+            let config = AgentConfig::builder(format!("agent_{}", i))
                 .system_prompt("Test agent")
                 .build();
 
             let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
 
-            let input = AgentInput::from_text(&format!("Input {}", i));
+            let input = AgentInput::from_text(format!("Input {}", i));
             agent.execute(&input).await
         });
         handles.push(handle);
@@ -46,9 +46,9 @@ async fn test_concurrent_agents_50() {
 
     for i in 0..50 {
         let handle = tokio::spawn(async move {
-            let mock_client = MockLlmClient::new().with_response(format!("Response {}", i));
+            let mock_client = MockLlmClient::new().with_response(&format!("Response {}", i));
 
-            let config = AgentConfig::builder(&format!("agent_{}", i))
+            let config = AgentConfig::builder(format!("agent_{}", i))
                 .system_prompt("Test")
                 .build();
 
@@ -79,7 +79,7 @@ async fn test_concurrent_agents_100() {
         let handle = tokio::spawn(async move {
             let mock_client = MockLlmClient::new().with_response("Response");
 
-            let config = AgentConfig::builder(&format!("agent_{}", i))
+            let config = AgentConfig::builder(format!("agent_{}", i))
                 .system_prompt("Test")
                 .build();
 
@@ -104,7 +104,7 @@ async fn test_concurrent_agents_100() {
 async fn test_concurrent_tool_executions() {
     // Test many concurrent tool executions
     let call_count = Arc::new(AtomicUsize::new(0));
-    let registry = Arc::new(ToolRegistry::new());
+    let mut registry = ToolRegistry::new();
 
     let counter = call_count.clone();
     registry.register(NativeTool::new(
@@ -122,13 +122,14 @@ async fn test_concurrent_tool_executions() {
         },
     ));
 
+    let registry = Arc::new(registry);
     let mut handles = vec![];
 
-    for i in 0..50 {
+    for _ in 0..50 {
         let reg = registry.clone();
         let handle = tokio::spawn(async move {
             let tool = reg.get("counter").unwrap();
-            tool.execute(&json!({})).await
+            tool.execute(std::collections::HashMap::new()).await
         });
         handles.push(handle);
     }
@@ -158,9 +159,14 @@ async fn test_event_broadcast_to_multiple_subscribers() {
 
     // Send 100 events
     for i in 0..100 {
-        let event = RuntimeEvent::AgentStarted {
-            agent_name: format!("agent_{}", i),
-            step_index: i,
+        let event = agent_runtime::Event {
+            id: i.to_string(),
+            offset: i as u64,
+            timestamp: chrono::Utc::now(),
+            event_type: agent_runtime::EventType::AgentProcessing,
+            workflow_id: format!("workflow_{}", i),
+            parent_workflow_id: None,
+            data: json!({"agent_name": format!("agent_{}", i), "step_index": i}),
         };
         let _ = tx.send(event);
     }
@@ -177,31 +183,27 @@ async fn test_event_broadcast_to_multiple_subscribers() {
 
 #[tokio::test]
 async fn test_tool_registry_concurrent_access() {
-    // Test concurrent registration and access
-    let registry = Arc::new(ToolRegistry::new());
-    let mut handles = vec![];
+    // Test concurrent access (not concurrent registration)
+    let mut registry = ToolRegistry::new();
 
-    // Register 20 tools concurrently
+    // Register 20 tools upfront
     for i in 0..20 {
-        let reg = registry.clone();
-        let handle = tokio::spawn(async move {
-            reg.register(NativeTool::new(
-                &format!("tool_{}", i),
-                "Test tool",
-                json!({}),
-                |_args| {
-                    Box::pin(async move {
-                        let start = std::time::Instant::now();
-                        let duration = start.elapsed().as_secs_f64() * 1000.0;
-                        Ok(ToolResult::success(json!({"id": i}), duration))
-                    })
-                },
-            ));
-        });
-        handles.push(handle);
+        let i_copy = i; // Capture i for closure
+        registry.register(NativeTool::new(
+            format!("tool_{}", i),
+            "Test tool",
+            json!({}),
+            move |_args| {
+                Box::pin(async move {
+                    let start = std::time::Instant::now();
+                    let duration = start.elapsed().as_secs_f64() * 1000.0;
+                    Ok(ToolResult::success(json!({"id": i_copy}), duration))
+                })
+            },
+        ));
     }
 
-    futures::future::join_all(handles).await;
+    let registry = Arc::new(registry);
 
     // All tools should be registered
     let names = registry.list_names();
@@ -213,7 +215,7 @@ async fn test_tool_registry_concurrent_access() {
         let reg = registry.clone();
         let handle = tokio::spawn(async move {
             let tool = reg.get(&name).unwrap();
-            tool.execute(&json!({})).await
+            tool.execute(std::collections::HashMap::new()).await
         });
         handles.push(handle);
     }
@@ -236,7 +238,7 @@ async fn test_agent_with_many_tool_calls() {
     }
     mock_client = mock_client.with_response("Completed all 50 calls");
 
-    let registry = Arc::new(ToolRegistry::new());
+    let mut registry = ToolRegistry::new();
     let call_count = Arc::new(AtomicUsize::new(0));
     let counter = call_count.clone();
 
@@ -280,29 +282,34 @@ async fn test_concurrent_workflows() {
         let handle = tokio::spawn(async move {
             let mock_client = Arc::new(
                 MockLlmClient::new()
-                    .with_response(format!("Response from step 1 - workflow {}", i))
-                    .with_response(format!("Response from step 2 - workflow {}", i)),
+                    .with_response(&format!("Response from step 1 - workflow {}", i))
+                    .with_response(&format!("Response from step 2 - workflow {}", i)),
             );
 
-            let agent1_config = AgentConfig::builder(&format!("agent1_{}", i))
+            let agent1_config = AgentConfig::builder(format!("agent1_{}", i))
                 .system_prompt("First agent")
                 .build();
             let agent1 = Agent::new(agent1_config).with_llm_client(mock_client.clone());
 
-            let agent2_config = AgentConfig::builder(&format!("agent2_{}", i))
+            let agent2_config = AgentConfig::builder(format!("agent2_{}", i))
                 .system_prompt("Second agent")
                 .build();
             let agent2 = Agent::new(agent2_config).with_llm_client(mock_client);
 
             let workflow = WorkflowBuilder::new()
-                .name(&format!("workflow_{}", i))
-                .add_step(agent1)
-                .add_step(agent2)
+                .name(format!("workflow_{}", i))
+                .add_step(Box::new(agent_runtime::AgentStep::from_agent(
+                    agent1,
+                    format!("step1_{}", i),
+                )))
+                .add_step(Box::new(agent_runtime::AgentStep::from_agent(
+                    agent2,
+                    format!("step2_{}", i),
+                )))
                 .build();
 
             let runtime = Runtime::new();
-            let input = json!({"message": format!("Input for workflow {}", i)});
-            runtime.execute(&workflow, input).await
+            runtime.execute(workflow).await
         });
         handles.push(handle);
     }
@@ -311,7 +318,8 @@ async fn test_concurrent_workflows() {
 
     for result in results {
         assert!(result.is_ok());
-        assert!(result.unwrap().is_ok());
+        let workflow_run = result.unwrap();
+        assert_eq!(workflow_run.state, agent_runtime::WorkflowState::Completed);
     }
 }
 
@@ -322,7 +330,7 @@ async fn test_memory_usage_many_agents() {
 
     for i in 0..100 {
         let mock_client = MockLlmClient::new().with_response("Response");
-        let config = AgentConfig::builder(&format!("agent_{}", i))
+        let config = AgentConfig::builder(format!("agent_{}", i))
             .system_prompt("Test")
             .build();
         let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
@@ -362,9 +370,14 @@ async fn test_event_throughput() {
 
     // Send 1000 events
     for i in 0..1000 {
-        let event = RuntimeEvent::AgentCompleted {
-            agent_name: format!("agent_{}", i),
-            step_index: i,
+        let event = agent_runtime::Event {
+            id: i.to_string(),
+            offset: i as u64,
+            timestamp: chrono::Utc::now(),
+            event_type: agent_runtime::EventType::AgentCompleted,
+            workflow_id: format!("workflow_{}", i),
+            parent_workflow_id: None,
+            data: json!({"agent_name": format!("agent_{}", i), "step_index": i}),
         };
         let _ = tx.send(event);
     }
@@ -384,7 +397,7 @@ async fn test_concurrent_agent_with_tools() {
                 .with_tool_call("test_tool", json!({"id": i}))
                 .with_response("Done");
 
-            let registry = Arc::new(ToolRegistry::new());
+            let mut registry = ToolRegistry::new();
             registry.register(NativeTool::new("test_tool", "Test", json!({}), |_args| {
                 Box::pin(async move {
                     let start = std::time::Instant::now();
@@ -394,7 +407,7 @@ async fn test_concurrent_agent_with_tools() {
                 })
             }));
 
-            let config = AgentConfig::builder(&format!("agent_{}", i))
+            let config = AgentConfig::builder(format!("agent_{}", i))
                 .system_prompt("Test")
                 .tools(Arc::new(registry))
                 .build();
@@ -426,7 +439,7 @@ async fn test_stress_tool_loop_detection() {
                 .with_tool_call("tool", json!({"same": "args"})) // Duplicate
                 .with_response("Detected");
 
-            let registry = Arc::new(ToolRegistry::new());
+            let mut registry = ToolRegistry::new();
             registry.register(NativeTool::new("tool", "Test", json!({}), |_args| {
                 Box::pin(async move {
                     let start = std::time::Instant::now();
@@ -435,10 +448,10 @@ async fn test_stress_tool_loop_detection() {
                 })
             }));
 
-            let config = AgentConfig::builder(&format!("agent_{}", i))
+            let config = AgentConfig::builder(format!("agent_{}", i))
                 .system_prompt("Test")
                 .tools(Arc::new(registry))
-                .enable_tool_loop_detection(true)
+                .tool_loop_detection(agent_runtime::ToolLoopDetectionConfig::default())
                 .build();
 
             let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
