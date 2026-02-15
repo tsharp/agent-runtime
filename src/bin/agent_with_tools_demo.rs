@@ -194,6 +194,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 step_index: 0,
                 previous_agent: None,
             },
+            chat_history: None,
         };
 
         match agent
@@ -236,6 +237,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 step_index: 0,
                 previous_agent: None,
             },
+            chat_history: None,
         };
 
         match agent
@@ -278,6 +280,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 step_index: 0,
                 previous_agent: None,
             },
+            chat_history: None,
         };
 
         match agent
@@ -320,6 +323,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 step_index: 0,
                 previous_agent: None,
             },
+            chat_history: None,
         };
 
         match agent

@@ -48,6 +48,7 @@ impl Step for AgentStep {
                 step_index: input.metadata.step_index,
                 previous_agent: input.metadata.previous_step.clone(),
             },
+            chat_history: None,
         };
 
         // Execute agent with event stream
