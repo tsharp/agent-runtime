@@ -1,5 +1,5 @@
 use crate::{
-    event::{Event, EventStream, EventType},
+    event::{Event, EventStream},
     step::{StepInput, StepInputMetadata, StepType},
     step_impls::SubWorkflowStep,
     workflow::{Workflow, WorkflowRun, WorkflowState, WorkflowStepRecord},
@@ -35,11 +35,9 @@ impl Runtime {
     ) -> WorkflowRun {
         let workflow_id = workflow.id.clone();
 
-        // Emit workflow started event
-        self.event_stream.append_with_parent(
-            EventType::WorkflowStarted,
-            workflow_id.clone(),
-            parent_workflow_id.clone(),
+        // Emit Workflow::Started event
+        self.event_stream.workflow_started(
+            &workflow_id,
             serde_json::json!({
                 "step_count": workflow.steps.len(),
                 "parent_workflow_id": parent_workflow_id,
@@ -64,13 +62,11 @@ impl Runtime {
             let step_type_enum = step.step_type();
             let step_type = format!("{:?}", step_type_enum);
 
-            // Emit step started event
-            self.event_stream.append_with_parent(
-                EventType::WorkflowStepStarted,
-                workflow_id.clone(),
-                parent_workflow_id.clone(),
+            // Emit WorkflowStep::Started event
+            self.event_stream.step_started(
+                &workflow_id,
+                step_index,
                 serde_json::json!({
-                    "step_index": step_index,
                     "step_name": &step_name,
                     "step_type": &step_type,
                 }),
@@ -109,13 +105,11 @@ impl Runtime {
 
             match result {
                 Ok(output) => {
-                    // Emit step completed
-                    self.event_stream.append_with_parent(
-                        EventType::WorkflowStepCompleted,
-                        workflow_id.clone(),
-                        parent_workflow_id.clone(),
+                    // Emit WorkflowStep::Completed event
+                    self.event_stream.step_completed(
+                        &workflow_id,
+                        step_index,
                         serde_json::json!({
-                            "step_index": step_index,
                             "step_name": &step_name,
                             "execution_time_ms": output.metadata.execution_time_ms,
                         }),
@@ -135,25 +129,23 @@ impl Runtime {
                     current_data = output.data;
                 }
                 Err(e) => {
-                    // Emit step failed
-                    self.event_stream.append_with_parent(
-                        EventType::AgentFailed, // TODO: Add StepFailed event type
-                        workflow_id.clone(),
-                        parent_workflow_id.clone(),
+                    // Emit WorkflowStep::Failed event
+                    self.event_stream.step_failed(
+                        &workflow_id,
+                        step_index,
+                        &e.to_string(),
                         serde_json::json!({
                             "step_name": &step_name,
-                            "error": e.to_string(),
                         }),
                     );
 
-                    // Emit workflow failed
-                    self.event_stream.append_with_parent(
-                        EventType::WorkflowFailed,
-                        workflow_id.clone(),
-                        parent_workflow_id.clone(),
+                    // Emit Workflow::Failed event
+                    self.event_stream.workflow_failed(
+                        &workflow_id,
+                        &e.to_string(),
                         serde_json::json!({
-                            "error": e.to_string(),
                             "failed_step": step_index,
+                            "failed_step_name": &step_name,
                         }),
                     );
 
@@ -169,10 +161,8 @@ impl Runtime {
         run.state = WorkflowState::Completed;
         workflow.state = WorkflowState::Completed;
 
-        self.event_stream.append_with_parent(
-            EventType::WorkflowCompleted,
-            workflow_id.clone(),
-            parent_workflow_id.clone(),
+        self.event_stream.workflow_completed(
+            &workflow_id,
             serde_json::json!({
                 "steps_completed": run.steps.len(),
             }),

@@ -163,10 +163,14 @@ async fn test_event_broadcast_to_multiple_subscribers() {
             id: i.to_string(),
             offset: i as u64,
             timestamp: chrono::Utc::now(),
-            event_type: agent_runtime::EventType::AgentProcessing,
+            scope: agent_runtime::EventScope::Agent,
+            event_type: agent_runtime::EventType::Started,
+            component_id: format!("agent_{}", i),
+            status: agent_runtime::ComponentStatus::Running,
             workflow_id: format!("workflow_{}", i),
             parent_workflow_id: None,
-            data: json!({"agent_name": format!("agent_{}", i), "step_index": i}),
+            message: None,
+            data: json!({"step_index": i}),
         };
         let _ = tx.send(event);
     }
@@ -374,10 +378,14 @@ async fn test_event_throughput() {
             id: i.to_string(),
             offset: i as u64,
             timestamp: chrono::Utc::now(),
-            event_type: agent_runtime::EventType::AgentCompleted,
+            scope: agent_runtime::EventScope::Agent,
+            event_type: agent_runtime::EventType::Completed,
+            component_id: format!("agent_{}", i),
+            status: agent_runtime::ComponentStatus::Completed,
             workflow_id: format!("workflow_{}", i),
             parent_workflow_id: None,
-            data: json!({"agent_name": format!("agent_{}", i), "step_index": i}),
+            message: None,
+            data: json!({"step_index": i}),
         };
         let _ = tx.send(event);
     }

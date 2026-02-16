@@ -1,7 +1,7 @@
 use agent_runtime::llm::LlamaClient;
 use agent_runtime::tool::{NativeTool, ToolRegistry};
 use agent_runtime::types::{AgentInputMetadata, ToolError, ToolResult};
-use agent_runtime::{Agent, AgentConfig, AgentInput, EventType, FileLogger, Runtime};
+use agent_runtime::{Agent, AgentConfig, AgentInput, FileLogger, Runtime};
 use serde_json::json;
 use std::fs;
 use std::sync::Arc;
@@ -144,17 +144,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
 
             // Print tool call events to console
-            match event.event_type {
-                EventType::ToolCallStarted => {
-                    if let Some(tool) = event.data.get("tool_name").and_then(|v| v.as_str()) {
-                        println!("   🔧 Calling tool: {}", tool);
-                    }
+            match (event.scope.clone(), event.event_type.clone()) {
+                (
+                    agent_runtime::event::EventScope::Tool,
+                    agent_runtime::event::EventType::Started,
+                ) => {
+                    println!("   🔧 Calling tool: {}", event.component_id);
                 }
-                EventType::ToolCallCompleted => {
-                    if let Some(tool) = event.data.get("tool_name").and_then(|v| v.as_str()) {
-                        if let Some(duration) = event.data.get("duration_ms") {
-                            println!("   ✓ Tool {} completed in {}ms", tool, duration);
-                        }
+                (
+                    agent_runtime::event::EventScope::Tool,
+                    agent_runtime::event::EventType::Completed,
+                ) => {
+                    if let Some(duration) = event.data.get("duration_ms") {
+                        println!(
+                            "   ✓ Tool {} completed in {}ms",
+                            event.component_id, duration
+                        );
                     }
                 }
                 _ => {}

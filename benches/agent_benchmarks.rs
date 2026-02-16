@@ -1,5 +1,5 @@
 use agent_runtime::prelude::*;
-use agent_runtime::{Agent, AgentConfig, AgentInput, Event, EventType, NativeTool, ToolRegistry};
+use agent_runtime::{Agent, AgentConfig, AgentInput, Event, NativeTool, ToolRegistry};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use serde_json::json;
 use std::sync::Arc;
@@ -185,10 +185,15 @@ fn bench_event_emission(c: &mut Criterion) {
             // Emit event
             let event = Event::new(
                 0,
-                EventType::AgentProcessing,
+                agent_runtime::EventScope::Agent,
+                agent_runtime::EventType::Started,
+                "bench_agent".to_string(),
+                agent_runtime::ComponentStatus::Running,
                 "bench_workflow".to_string(),
-                json!({"agent": "bench_agent", "step": 0}),
-            );
+                None,
+                json!({"step": 0}),
+            )
+            .unwrap();
 
             let _ = tx.send(black_box(event));
 

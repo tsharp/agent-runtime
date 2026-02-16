@@ -4,7 +4,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Travis Sharp <travis@kuipersys.com>"]
 license = "MIT OR Apache-2.0"
@@ -19,7 +19,7 @@ all = "warn"
 # Root package - the main MCP library
 [package]
 name = "agent-runtime"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Travis Sharp <travis@kuipersys.com>"]
 license = "MIT OR Apache-2.0"

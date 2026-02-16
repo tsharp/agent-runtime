@@ -25,12 +25,12 @@ A production-ready Rust framework for building AI agent workflows with native an
 - **Nested workflows** - SubWorkflows for complex orchestration
 - **Mermaid export** - Visualize workflows as diagrams
 
-### 📡 Event System
-- **Real-time events** - Complete visibility into execution
-- **Fine-grained tracking** - Workflow, agent, LLM, and tool events
-- **Streaming chunks** - Live LLM token streaming via events
+### 📡 Event System (v0.3.0 - Unified)
+- **Unified event model** - Consistent `Scope × Type × Status` pattern across all components
+- **Complete lifecycle tracking** - Started → Progress → Completed/Failed for workflows, agents, LLM requests, tools
+- **Real-time streaming** - Live LLM token streaming via Progress events
 - **Multi-subscriber** - Multiple event listeners per workflow
-- **Event bubbling** - Events propagate from tools → agents → workflows
+- **Type-safe component IDs** - Enforced formats with validation
 
 ### ⚙️ Configuration
 - **YAML and TOML support** - Human-readable config files
@@ -39,11 +39,11 @@ A production-ready Rust framework for building AI agent workflows with native an
 - **Per-agent settings** - System prompts, tools, LLM clients, loop prevention
 
 ### 🔒 Production Ready
-- **61 comprehensive tests** - All core functionality tested
-- **Tool loop prevention** - Prevents LLM from calling same tool repeatedly
-- **Microsecond timing** - Precise performance metrics
-- **Structured logging** - FileLogger with timestamped output
-- **Error handling** - Detailed error types with context
+- **97 comprehensive tests** - All core functionality tested
+- **Tool loop prevention** - Prevents LLM from calling same tool repeatedly with System::Progress events
+- **Microsecond timing** - Precise performance metrics via event data
+- **Async event emission** - Non-blocking event streaming with tokio::spawn
+- **Error handling** - Detailed error types with context and human-readable messages
 
 ## Quick Start
 
@@ -111,21 +111,34 @@ let workflow = Workflow::new("analysis")
 let result = workflow.execute(initial_input, &mut event_rx).await?;
 ```
 
-### Event Streaming
+### Event Streaming (v0.3.0)
 ```rust
+use agent_runtime::{EventScope, EventType};
+
 let (tx, mut rx) = mpsc::channel(100);
 
 // Subscribe to events
 tokio::spawn(async move {
     while let Some(event) = rx.recv().await {
-        match event.event_type {
-            EventType::AgentLlmStreamChunk => {
-                print!("{}", event.data.get("chunk").unwrap());
+        match (event.scope, event.event_type) {
+            // Stream LLM responses in real-time
+            (EventScope::LlmRequest, EventType::Progress) => {
+                if let Some(chunk) = event.data["chunk"].as_str() {
+                    print!("{}", chunk);
+                }
             }
-            EventType::ToolCallCompleted => {
-                println!("Tool {} returned: {}", 
-                    event.data["tool_name"],
+            // Track tool executions
+            (EventScope::Tool, EventType::Completed) => {
+                println!("✓ Tool {} returned: {}", 
+                    event.component_id,
                     event.data["result"]
+                );
+            }
+            // Handle failures
+            (_, EventType::Failed) => {
+                eprintln!("❌ {}: {}",
+                    event.component_id,
+                    event.message.unwrap_or_default()
                 );
             }
             _ => {}
@@ -171,23 +184,42 @@ let config = RuntimeConfig::from_file("agent-runtime.yaml")?;
 - **`config`** - YAML/TOML configuration loading
 - **`tool_loop_detection`** - Intelligent duplicate tool call prevention
 
-### Event Types
-- **Workflow**: Started, StepStarted, StepCompleted, StepFailed, Completed, Failed
-- **Agent**: Started, Completed, Failed, LlmStreamChunk
-- **LLM**: RequestSent, ResponseReceived, StreamChunkReceived
-- **Tool**: ToolCallStarted, ToolCallCompleted, ToolCallFailed, AgentToolLoopDetected
+### Event System (v0.3.0)
+**Unified Scope × Type × Status Pattern:**
+- **Scopes**: Workflow, WorkflowStep, Agent, LlmRequest, Tool, System
+- **Types**: Started, Progress, Completed, Failed, Canceled
+- **Status**: Pending, Running, Completed, Failed, Canceled
+
+**Key Events:**
+- `Workflow::Started/Completed/Failed` - Overall workflow execution
+- `WorkflowStep::Started/Completed/Failed` - Individual step tracking
+- `Agent::Started/Completed/Failed` - Agent processing lifecycle
+- `LlmRequest::Started/Progress/Completed/Failed` - Real-time LLM streaming
+- `Tool::Started/Progress/Completed/Failed` - Tool execution tracking
+- `System::Progress` - Runtime behaviors (e.g., tool loop detection)
+
+**Component ID Formats:**
+- Workflow: `workflow_name`
+- WorkflowStep: `workflow:step:N`
+- Agent: `agent_name`
+- LlmRequest: `agent:llm:N`
+- Tool: `tool_name` or `tool_name:N`
+- System: `system:subsystem`
 
 ### Tool Loop Prevention
 Prevents LLMs from calling the same tool with identical arguments repeatedly:
 - **Automatic detection** - Tracks tool calls and arguments using MD5 hashing
+- **System events** - Emits `System::Progress` event with `system:tool_loop_detection` component ID
 - **Configurable messages** - Custom messages with `{tool_name}` and `{previous_result}` placeholders
-- **Event emission** - `AgentToolLoopDetected` event for observability
 - **Enabled by default** - Can be disabled per-agent if needed
 
 ## Examples
 
 Run any demo:
 ```bash
+# Event System
+cargo run --bin async_events_demo    # NEW! Async event streaming demo with visible sequence
+
 # Workflows
 cargo run --bin workflow_demo          # 3-agent workflow with LLM
 cargo run --bin hello_workflow         # Simple sequential workflow
@@ -212,10 +244,12 @@ cargo run --bin complex_viz            # Complex workflow diagram
 
 ## Documentation
 
+- **[Event Streaming Guide](docs/EVENT_STREAMING.md)** - Complete event system documentation (v0.3.0)
+- **[Migration Guide](docs/MIGRATION_0.2_TO_0.3.md)** - Upgrading from v0.2.x to v0.3.0
+- **[Changelog](CHANGELOG.md)** - Release notes for v0.3.0
 - **[Specification](docs/spec.md)** - Complete system design
 - **[Tool Calling](docs/TOOL_CALLING.md)** - Native tool usage
 - **[MCP Integration](docs/MCP_INTEGRATION.md)** - External MCP tools
-- **[Event Streaming](docs/EVENT_STREAMING.md)** - Event system guide
 - **[LLM Module](docs/LLM_MODULE.md)** - LLM provider integration
 - **[Workflow Composition](docs/WORKFLOW_COMPOSITION.md)** - Building workflows
 - **[Testing](docs/TESTING.md)** - Test suite documentation
@@ -223,12 +257,39 @@ cargo run --bin complex_viz            # Complex workflow diagram
 ## Testing
 
 ```bash
-cargo test              # All 61 tests
+cargo test              # All 97 tests
 cargo test --lib        # Library tests only
 cargo test agent        # Agent tests
 cargo test tool         # Tool tests
+cargo test event        # Event system tests
 cargo clippy            # Linting
+cargo fmt --all         # Format code
 ```
+
+## What's New in v0.3.0
+
+**🎉 Unified Event System** - Complete rewrite for consistency and extensibility
+
+- **Breaking Changes**: New event structure with `EventScope`, `ComponentStatus`, unified `EventType`
+- **Helper Methods**: 19 ergonomic helper methods for common event patterns
+- **Component IDs**: Enforced formats with validation for type safety
+- **Async Events**: Non-blocking event emission via `tokio::spawn()`
+- **Migration Guide**: See [docs/MIGRATION_0.2_TO_0.3.md](docs/MIGRATION_0.2_TO_0.3.md)
+
+**Upgrading from v0.2.x?**
+```rust
+// Old (v0.2.x)
+match event.event_type {
+    EventType::AgentLlmStreamChunk => { ... }
+}
+
+// New (v0.3.0)
+match (event.scope, event.event_type) {
+    (EventScope::LlmRequest, EventType::Progress) => { ... }
+}
+```
+
+See [CHANGELOG.md](CHANGELOG.md) for complete details.
 
 ## License
 Dual-licensed under MIT or Apache-2.0 at your option.
