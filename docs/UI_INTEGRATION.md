@@ -2,6 +2,195 @@
 
 The v0.3.0 unified event system is designed specifically to support real-time UI updates. This guide shows how to integrate various UI frameworks.
 
+## Reconnection & Event Replay
+
+### Does a new subscriber get all events?
+
+**Answer**: Not automatically, but **yes via explicit replay**!
+
+The `EventStream` has two subscription modes:
+
+```rust
+// Mode 1: Live events only (new subscribers get FUTURE events)
+let mut rx = runtime.event_stream().subscribe();
+
+// Mode 2: Historical replay (get events from specific offset)
+let missed_events = runtime.event_stream().from_offset(last_offset);
+```
+
+### Architecture
+
+```rust
+pub struct EventStream {
+    sender: broadcast::Sender<Event>,     // Live streaming
+    history: Arc<RwLock<Vec<Event>>>,     // Full history storage
+    next_offset: Arc<RwLock<EventOffset>>, // Sequential numbering
+}
+```
+
+**Key points:**
+- ✅ EventStream stores **ALL events** in memory (history)
+- ✅ Each event gets a **sequential offset** (0, 1, 2, ...)
+- ✅ `subscribe()` gives you **future events** from now
+- ✅ `from_offset(N)` gives you **historical events** from offset N onwards
+
+### Reconnection Pattern (Zero Event Loss)
+
+Perfect for web UIs, mobile apps, or any scenario with temporary disconnections:
+
+```rust
+struct WebSocketClient {
+    last_offset: u64,  // Track last event received
+}
+
+impl WebSocketClient {
+    async fn reconnect(&mut self, runtime: &Runtime) {
+        // Step 1: Get all missed events since disconnection
+        let missed = runtime.event_stream().from_offset(self.last_offset + 1);
+        
+        for event in missed {
+            self.last_offset = event.offset;
+            self.send_to_ui(event).await;  // Catch up!
+        }
+        
+        // Step 2: Subscribe to live events going forward
+        let mut rx = runtime.event_stream().subscribe();
+        
+        while let Ok(event) = rx.recv().await {
+            self.last_offset = event.offset;
+            self.send_to_ui(event).await;
+        }
+    }
+}
+```
+
+### Example: WebSocket Server with Reconnection
+
+```rust
+use axum::{
+    extract::ws::{WebSocket, Message},
+    extract::{Query, WebSocketUpgrade},
+    response::Response,
+};
+use agent_runtime::Runtime;
+use serde::Deserialize;
+use std::sync::Arc;
+
+#[derive(Deserialize)]
+struct ReconnectParams {
+    last_offset: Option<u64>,
+}
+
+async fn ws_handler(
+    ws: WebSocketUpgrade,
+    Query(params): Query<ReconnectParams>,
+    runtime: Arc<Runtime>,
+) -> Response {
+    ws.on_upgrade(move |socket| handle_socket(socket, runtime, params.last_offset))
+}
+
+async fn handle_socket(
+    mut socket: WebSocket,
+    runtime: Arc<Runtime>,
+    last_offset: Option<u64>,
+) {
+    // If reconnecting, send missed events first
+    if let Some(offset) = last_offset {
+        let missed_events = runtime.event_stream().from_offset(offset + 1);
+        
+        for event in missed_events {
+            let json = serde_json::to_string(&event).unwrap();
+            if socket.send(Message::Text(json)).await.is_err() {
+                return; // Client disconnected again
+            }
+        }
+    }
+    
+    // Then stream live events
+    let mut rx = runtime.event_stream().subscribe();
+    
+    while let Ok(event) = rx.recv().await {
+        let json = serde_json::to_string(&event).unwrap();
+        if socket.send(Message::Text(json)).await.is_err() {
+            break;
+        }
+    }
+}
+```
+
+### Client-Side (React/TypeScript)
+
+```typescript
+class EventStreamClient {
+  private lastOffset: number = 0;
+  private ws: WebSocket | null = null;
+
+  connect() {
+    // Include last offset in connection URL for reconnection
+    const url = `ws://localhost:3000/events?last_offset=${this.lastOffset}`;
+    this.ws = new WebSocket(url);
+    
+    this.ws.onmessage = (msg) => {
+      const event = JSON.parse(msg.data);
+      this.lastOffset = event.offset;  // Track offset
+      this.handleEvent(event);
+    };
+    
+    this.ws.onclose = () => {
+      // Auto-reconnect after 1 second
+      setTimeout(() => this.connect(), 1000);
+    };
+  }
+  
+  handleEvent(event: Event) {
+    // Update UI with event
+    console.log(`Received: offset=${event.offset}`, event);
+  }
+}
+```
+
+### Benefits
+
+✅ **Zero event loss** - Disconnected clients catch up on reconnect  
+✅ **Page refresh support** - Store `lastOffset` in localStorage  
+✅ **Mobile background** - App resumes with full context  
+✅ **Network resilience** - Temporary outages don't lose data  
+✅ **Debugging** - Can replay entire workflow history  
+
+### Memory Considerations
+
+The in-memory history grows with event count. For long-running services:
+
+```rust
+// Option 1: Persist to database and clear old events
+async fn archive_old_events(stream: &EventStream) {
+    let events = stream.from_offset(0);
+    database.insert_batch(events).await;
+    // (Note: EventStream doesn't have clear() method - would need to be added)
+}
+
+// Option 2: Use bounded history (future enhancement)
+let stream = EventStream::with_capacity_and_history_limit(1000, 10_000);
+// Keeps only last 10,000 events, older ones dropped
+```
+
+### Alternative: Time-Based Subscriptions
+
+For UIs that don't need full history:
+
+```rust
+// Get events from last 5 minutes
+let five_mins_ago = Utc::now() - Duration::minutes(5);
+let recent_events: Vec<Event> = runtime
+    .event_stream()
+    .from_offset(0)
+    .into_iter()
+    .filter(|e| e.timestamp > five_mins_ago)
+    .collect();
+```
+
+---
+
 ## Core Concept
 
 The `EventStream` uses Tokio's `broadcast` channel, which supports **multiple subscribers**. Any UI can subscribe and receive real-time events as workflows execute.
