@@ -1,6 +1,6 @@
 use agent_runtime::{
     llm::{ChatClient, LlamaClient},
-    Agent, AgentConfig, AgentStep, EventType, FileLogger, Runtime, Workflow,
+    Agent, AgentConfig, AgentStep, FileLogger, Runtime, Workflow,
 };
 use std::fs;
 use std::sync::Arc;
@@ -94,35 +94,51 @@ async fn main() {
                 serde_json::to_string(&event.data).unwrap_or_default(),
             );
 
-            match event.event_type {
-                EventType::AgentProcessing => {
+            match (event.scope.clone(), event.event_type.clone()) {
+                (
+                    agent_runtime::event::EventScope::Agent,
+                    agent_runtime::event::EventType::Started,
+                ) => {
                     if let Some(agent) = event.data.get("agent").and_then(|v| v.as_str()) {
                         println!("\n🤖 {} >", agent);
                         std::io::Write::flush(&mut std::io::stdout()).ok();
                     }
                 }
-                EventType::AgentLlmStreamChunk => {
+                (
+                    agent_runtime::event::EventScope::LlmRequest,
+                    agent_runtime::event::EventType::Progress,
+                ) => {
                     if let Some(chunk) = event.data.get("chunk").and_then(|v| v.as_str()) {
                         print!("{}", chunk);
                         std::io::Write::flush(&mut std::io::stdout()).ok();
                     }
                 }
-                EventType::AgentLlmRequestCompleted => {
+                (
+                    agent_runtime::event::EventScope::LlmRequest,
+                    agent_runtime::event::EventType::Completed,
+                ) => {
                     println!(); // New line after streaming completes
                 }
-                EventType::AgentLlmRequestFailed => {
-                    if let Some(_agent) = event.data.get("agent").and_then(|v| v.as_str()) {
-                        if let Some(error) = event.data.get("error").and_then(|v| v.as_str()) {
-                            println!("\n   ❌ Error: {}", error);
-                        }
+                (
+                    agent_runtime::event::EventScope::LlmRequest,
+                    agent_runtime::event::EventType::Failed,
+                ) => {
+                    if let Some(error) = event.message.as_ref() {
+                        println!("\n   ❌ Error: {}", error);
                     }
                 }
-                EventType::WorkflowCompleted => {
+                (
+                    agent_runtime::event::EventScope::Workflow,
+                    agent_runtime::event::EventType::Completed,
+                ) => {
                     println!("\n{}", "=".repeat(60));
                     println!("✅ Workflow Completed");
                     break;
                 }
-                EventType::WorkflowFailed => {
+                (
+                    agent_runtime::event::EventScope::Workflow,
+                    agent_runtime::event::EventType::Failed,
+                ) => {
                     println!("\n{}", "=".repeat(60));
                     println!("❌ Workflow Failed");
                     break;

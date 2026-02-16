@@ -1,5 +1,5 @@
 use agent_runtime::{
-    event::EventType,
+    event::{EventScope, EventType},
     tool::{EchoTool, ToolRegistry},
     AgentConfig, AgentStep, Runtime, Workflow,
 };
@@ -36,7 +36,10 @@ async fn main() {
     let logger = tokio::spawn(async move {
         println!("[Logger] Started");
         while let Ok(event) = subscriber1.recv().await {
-            println!("[Logger] {:?} @ offset {}", event.event_type, event.offset);
+            println!(
+                "[Logger] {:?}::{:?} @ offset {}",
+                event.scope, event.event_type, event.offset
+            );
         }
     });
 
@@ -44,14 +47,10 @@ async fn main() {
     let workflow_monitor = tokio::spawn(async move {
         println!("[Workflow Monitor] Started");
         while let Ok(event) = subscriber2.recv().await {
-            if matches!(
-                event.event_type,
-                EventType::WorkflowStarted
-                    | EventType::WorkflowCompleted
-                    | EventType::WorkflowFailed
-            ) {
+            if event.scope == EventScope::Workflow {
                 println!(
-                    "[Workflow Monitor] 🔔 {:?} - {}",
+                    "[Workflow Monitor] 🔔 {:?}::{:?} - {}",
+                    event.scope,
                     event.event_type,
                     serde_json::to_string(&event.data).unwrap()
                 );
@@ -68,15 +67,12 @@ async fn main() {
         while let Ok(event) = subscriber3.recv().await {
             total_events += 1;
 
-            if matches!(
-                event.event_type,
-                EventType::AgentInitialized | EventType::AgentCompleted | EventType::AgentFailed
-            ) {
+            if event.scope == EventScope::Agent {
                 agent_events += 1;
             }
 
             // Print periodic summary
-            if event.event_type == EventType::WorkflowCompleted {
+            if event.scope == EventScope::Workflow && event.event_type == EventType::Completed {
                 println!(
                     "[Metrics] 📊 Total: {}, Agent-related: {}",
                     total_events, agent_events

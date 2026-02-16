@@ -26,7 +26,7 @@ pub use error::{
     AgentError, AgentErrorCode, ConfigError, ConfigErrorCode, LlmError, LlmErrorCode, RuntimeError,
     ToolError, ToolErrorCode, WorkflowError, WorkflowErrorCode,
 };
-pub use event::{Event, EventStream, EventType};
+pub use event::{ComponentStatus, Event, EventScope, EventStream, EventType};
 pub use llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};
 pub use logging::FileLogger;
 pub use retry::RetryPolicy;
@@ -43,7 +43,7 @@ pub use workflow::{Workflow, WorkflowBuilder, WorkflowState};
 // Prelude module for convenient imports in tests and examples
 pub mod prelude {
     pub use crate::agent::{Agent, AgentConfig};
-    pub use crate::event::{Event, EventStream, EventType};
+    pub use crate::event::{ComponentStatus, Event, EventScope, EventStream, EventType};
     pub use crate::llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};
     pub use crate::step_impls::{AgentStep, ConditionalStep, SubWorkflowStep, TransformStep};
     pub use crate::tool::{NativeTool, Tool, ToolRegistry};
