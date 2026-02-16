@@ -217,6 +217,9 @@ Prevents LLMs from calling the same tool with identical arguments repeatedly:
 
 Run any demo:
 ```bash
+# Event System
+cargo run --bin async_events_demo    # NEW! Async event streaming demo with visible sequence
+
 # Workflows
 cargo run --bin workflow_demo          # 3-agent workflow with LLM
 cargo run --bin hello_workflow         # Simple sequential workflow
