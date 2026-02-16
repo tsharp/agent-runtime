@@ -10,7 +10,6 @@
 /// - 500ms artificial delays to make sequence observable
 ///
 /// Run with: cargo run --bin async_events_demo
-
 use agent_runtime::event::{Event, EventScope, EventType};
 use agent_runtime::EventStream;
 use std::io::{self, Write};
@@ -102,18 +101,13 @@ async fn monitor_events(mut rx: tokio::sync::broadcast::Receiver<Event>) {
 }
 
 /// Simulates a workflow step with artificial delay
-async fn simulate_step(
-    stream: &EventStream,
-    workflow_id: &str,
-    step_num: usize,
-    delay_ms: u64,
-) {
+async fn simulate_step(stream: &EventStream, workflow_id: &str, step_num: usize, delay_ms: u64) {
     use agent_runtime::event::{ComponentStatus, EventScope, EventType};
 
     let component_id = format!("demo_workflow:step:{}", step_num);
 
     // Emit step started event
-    stream
+    let _ = stream
         .append(
             EventScope::WorkflowStep,
             EventType::Started,
@@ -132,7 +126,7 @@ async fn simulate_step(
     sleep(Duration::from_millis(delay_ms)).await;
 
     // Emit step completed event
-    stream
+    let _ = stream
         .append(
             EventScope::WorkflowStep,
             EventType::Completed,
@@ -190,7 +184,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start_time = std::time::Instant::now();
 
     // Emit workflow started event
-    stream
+    let _ = stream
         .append(
             EventScope::Workflow,
             EventType::Started,
@@ -213,7 +207,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let total_duration_ms = start_time.elapsed().as_millis() as u64;
 
     // Emit workflow completed event
-    stream
+    let _ = stream
         .append(
             EventScope::Workflow,
             EventType::Completed,
