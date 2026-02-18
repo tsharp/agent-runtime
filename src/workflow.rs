@@ -40,6 +40,24 @@ impl Workflow {
         WorkflowBuilder::new().name(name.to_string())
     }
 
+    /// Get a reference to the workflow's context (if it has one)
+    /// This allows external systems to checkpoint the conversation state
+    pub fn context(&self) -> Option<&Arc<RwLock<WorkflowContext>>> {
+        self.context.as_ref()
+    }
+
+    /// Take a snapshot of the current context for checkpointing
+    /// Returns a serializable clone of the context
+    pub fn checkpoint_context(&self) -> Option<WorkflowContext> {
+        self.context.as_ref().map(|ctx| ctx.read().unwrap().clone())
+    }
+
+    /// Restore context from a checkpoint
+    /// This allows resuming workflows with saved conversation state
+    pub fn restore_context(&mut self, context: WorkflowContext) {
+        self.context = Some(Arc::new(RwLock::new(context)));
+    }
+
     /// Generate a Mermaid flowchart diagram of this workflow with full expansion
     pub fn to_mermaid(&self) -> String {
         let mut diagram = String::from("flowchart TD\n");
@@ -535,6 +553,7 @@ pub struct WorkflowBuilder {
     context_manager: Option<Arc<dyn ContextManager>>,
     max_context_tokens: Option<usize>,
     input_output_ratio: Option<f64>,
+    restored_context: Option<WorkflowContext>,
 }
 
 impl WorkflowBuilder {
@@ -546,6 +565,7 @@ impl WorkflowBuilder {
             context_manager: None,
             max_context_tokens: None,
             input_output_ratio: None,
+            restored_context: None,
         }
     }
 
@@ -591,13 +611,23 @@ impl WorkflowBuilder {
         self
     }
 
+    /// Restore workflow from a saved context (for resumption)
+    /// This allows continuing a workflow from a checkpoint
+    pub fn with_restored_context(mut self, context: WorkflowContext) -> Self {
+        self.restored_context = Some(context);
+        self
+    }
+
     pub fn build(self) -> Workflow {
         let workflow_id = self
             .name
             .unwrap_or_else(|| format!("wf_{}", uuid::Uuid::new_v4()));
 
-        // Create context if context manager is provided
-        let context = self.context_manager.map(|_manager| {
+        // Use restored context if provided, otherwise create new
+        let context = if let Some(restored) = self.restored_context {
+            Some(Arc::new(RwLock::new(restored)))
+        } else if self.context_manager.is_some() {
+            // Create context if context manager is provided
             let mut ctx = if let (Some(tokens), Some(ratio)) =
                 (self.max_context_tokens, self.input_output_ratio)
             {
@@ -609,8 +639,10 @@ impl WorkflowBuilder {
             // Set the workflow ID in metadata
             ctx.metadata.workflow_id = workflow_id.clone();
 
-            Arc::new(RwLock::new(ctx))
-        });
+            Some(Arc::new(RwLock::new(ctx)))
+        } else {
+            None
+        };
 
         Workflow {
             id: workflow_id,

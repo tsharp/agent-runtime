@@ -259,6 +259,7 @@ impl SubWorkflowStep {
 
     /// Execute the sub-workflow using the provided runtime
     /// This ensures events are emitted to the parent's event stream
+    /// and allows sharing parent's chat history context
     pub(crate) fn execute_with_runtime<'a>(
         &'a self,
         input: StepInput,
@@ -272,6 +273,12 @@ impl SubWorkflowStep {
 
             // Override initial input with step input
             sub_workflow.initial_input = input.data.clone();
+
+            // Share parent's workflow context if it exists
+            // This allows sub-workflow agents to continue the conversation
+            if let Some(parent_context) = input.workflow_context {
+                sub_workflow.context = Some(parent_context);
+            }
 
             // Execute the sub-workflow with parent context
             let parent_workflow_id = Some(input.metadata.workflow_id.clone());
