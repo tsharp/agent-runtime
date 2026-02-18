@@ -202,6 +202,13 @@ impl ChatClient for LlamaClient {
         }
 
         // Convert byte stream to text chunks and send through channel
+        // Accumulate full response from streaming
+        let mut full_content = String::new();
+        let mut accumulated_tool_calls: Vec<LlamaToolCall> = Vec::new();
+        let mut finish_reason: Option<String> = None;
+        let mut model_name: Option<String> = None;
+        let mut usage_info: Option<UsageInfo> = None;
+
         let mut stream = response.bytes_stream();
         while let Some(chunk_result) = stream.next().await {
             let bytes = chunk_result.map_err(|e| LlmError::NetworkError(e.to_string()))?;
@@ -214,22 +221,92 @@ impl ChatClient for LlamaClient {
                         continue;
                     }
                     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
-                        if let Some(delta) = parsed
-                            .get("choices")
-                            .and_then(|c| c.get(0))
-                            .and_then(|c| c.get("delta"))
-                            .and_then(|d| d.get("content"))
-                            .and_then(|c| c.as_str())
-                        {
-                            let _ = tx.send(delta.to_string()).await;
+                        // Extract model name if present
+                        if model_name.is_none() {
+                            model_name = parsed.get("model").and_then(|m| m.as_str()).map(|s| s.to_string());
+                        }
+
+                        // Extract usage if present
+                        if usage_info.is_none() {
+                            if let Some(usage) = parsed.get("usage") {
+                                usage_info = serde_json::from_value(usage.clone()).ok();
+                            }
+                        }
+
+                        if let Some(choice) = parsed.get("choices").and_then(|c| c.get(0)) {
+                            // Extract finish_reason
+                            if let Some(reason) = choice.get("finish_reason").and_then(|r| r.as_str()) {
+                                finish_reason = Some(reason.to_string());
+                            }
+
+                            // Extract delta
+                            if let Some(delta) = choice.get("delta") {
+                                // Accumulate content
+                                if let Some(content) = delta.get("content").and_then(|c| c.as_str()) {
+                                    full_content.push_str(content);
+                                    let _ = tx.send(content.to_string()).await;
+                                }
+
+                                // Accumulate tool_calls
+                                if let Some(tool_calls_array) = delta.get("tool_calls").and_then(|tc| tc.as_array()) {
+                                    for tool_call in tool_calls_array {
+                                        if let Ok(tc) = serde_json::from_value::<LlamaToolCall>(tool_call.clone()) {
+                                            // Check if this tool_call already exists (by index), if so update it
+                                            if let Some(index) = tool_call.get("index").and_then(|i| i.as_u64()) {
+                                                let idx = index as usize;
+                                                if idx < accumulated_tool_calls.len() {
+                                                    // Update existing tool call (append arguments)
+                                                    if let Some(func_args) = tool_call.get("function").and_then(|f| f.get("arguments")).and_then(|a| a.as_str()) {
+                                                        accumulated_tool_calls[idx].function.arguments.push_str(func_args);
+                                                    }
+                                                } else {
+                                                    // New tool call
+                                                    accumulated_tool_calls.push(tc);
+                                                }
+                                            } else {
+                                                // No index, just add it
+                                                accumulated_tool_calls.push(tc);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
 
-        // After streaming, make a regular call to get the full response with tool_calls
-        self.chat(request).await
+        // Build response from accumulated streaming data
+        let tool_calls = if accumulated_tool_calls.is_empty() {
+            None
+        } else {
+            Some(
+                accumulated_tool_calls
+                    .iter()
+                    .map(|tc| super::super::types::ToolCall {
+                        id: tc.id.clone(),
+                        r#type: tc.r#type.clone(),
+                        function: super::super::types::FunctionCall {
+                            name: tc.function.name.clone(),
+                            arguments: tc.function.arguments.clone(),
+                        },
+                    })
+                    .collect(),
+            )
+        };
+
+        Ok(ChatResponse {
+            content: full_content,
+            model: model_name.unwrap_or_else(|| self.model.clone()),
+            usage: usage_info.map(|u| super::super::types::Usage {
+                prompt_tokens: u.prompt_tokens,
+                completion_tokens: u.completion_tokens,
+                total_tokens: u.total_tokens,
+            }),
+            finish_reason,
+            tool_calls,
+        })
     }
 }
 

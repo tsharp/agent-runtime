@@ -242,7 +242,7 @@ impl Agent {
                 let (chunk_tx, mut chunk_rx) = tokio::sync::mpsc::channel(100);
 
                 // Spawn task to receive chunks and emit events
-                let _chunk_event_task = tokio::spawn(async move {
+                let chunk_event_task = tokio::spawn(async move {
                     while let Some(chunk) = chunk_rx.recv().await {
                         if let Some(stream) = &event_stream_for_streaming {
                             stream.llm_progress(
@@ -257,6 +257,10 @@ impl Agent {
 
                 match client.chat_stream(request.clone(), chunk_tx).await {
                     Ok(response) => {
+                        // Wait for chunk event task to finish processing all chunks
+                        // This ensures all Progress events are emitted before Completed
+                        let _ = chunk_event_task.await;
+
                         // Emit LlmRequest::Completed event
                         if let Some(stream) = event_stream {
                             stream.llm_completed(
