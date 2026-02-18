@@ -66,6 +66,10 @@ name = "advanced_workflow_demo"
 path = "src/bin/advanced_workflow_demo.rs"
 
 [[bin]]
+name = "advanced_strategies_demo"
+path = "src/bin/advanced_strategies_demo.rs"
+
+[[bin]]
 name = "chat_history_demo"
 path = "src/bin/chat_history_demo.rs"
 

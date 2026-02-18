@@ -27,7 +27,9 @@ pub use config::{
 pub use context::{
     ContextError, ContextManager, MergeStrategy, NoOpManager, WorkflowContext, WorkflowMetadata,
 };
-pub use context_strategies::{SlidingWindowManager, TokenBudgetManager};
+pub use context_strategies::{
+    MessageTypeManager, SlidingWindowManager, SummarizationManager, TokenBudgetManager,
+};
 pub use error::{
     AgentError, AgentErrorCode, ConfigError, ConfigErrorCode, LlmError, LlmErrorCode, RuntimeError,
     ToolError, ToolErrorCode, WorkflowError, WorkflowErrorCode,

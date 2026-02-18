@@ -190,7 +190,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Show sample of history
     println!("\n   Sample messages:");
-    for (i, msg) in final_history.iter().take(6).enumerate() {
+    for (_i, msg) in final_history.iter().take(6).enumerate() {
         let truncated = if msg.content.len() > 60 {
             format!("{}...", &msg.content[..60])
         } else {
