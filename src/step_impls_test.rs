@@ -23,6 +23,7 @@ mod tests {
                 previous_step: None,
                 workflow_id: "wf_123".to_string(),
             },
+            workflow_context: None,
         };
 
         let result = step.execute(input).await;
@@ -51,6 +52,7 @@ mod tests {
                 previous_step: None,
                 workflow_id: "wf_123".to_string(),
             },
+            workflow_context: None,
         };
 
         let result = transform.execute(input).await;
@@ -74,6 +76,7 @@ mod tests {
                 previous_step: None,
                 workflow_id: "wf_123".to_string(),
             },
+            workflow_context: None,
         };
 
         let result = transform.execute(input).await;

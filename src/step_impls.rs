@@ -41,6 +41,14 @@ impl Step for AgentStep {
     ) -> StepResult {
         let start = std::time::Instant::now();
 
+        // Extract chat history from workflow context if available
+        let chat_history = if let Some(context_arc) = &input.workflow_context {
+            let context = context_arc.read().unwrap();
+            Some(context.history().to_vec())
+        } else {
+            None
+        };
+
         // Convert StepInput to AgentInput
         let agent_input = crate::types::AgentInput {
             data: input.data,
@@ -48,7 +56,7 @@ impl Step for AgentStep {
                 step_index: input.metadata.step_index,
                 previous_agent: input.metadata.previous_step.clone(),
             },
-            chat_history: None,
+            chat_history,
         };
 
         // Execute agent with event stream
@@ -57,6 +65,14 @@ impl Step for AgentStep {
             .execute_with_events(agent_input, ctx.event_stream)
             .await
             .map_err(|e| StepError::AgentError(e.to_string()))?;
+
+        // Update workflow context with new messages if it exists
+        if let Some(context_arc) = &input.workflow_context {
+            if let Some(new_history) = &result.chat_history {
+                let mut context = context_arc.write().unwrap();
+                context.set_history(new_history.clone());
+            }
+        }
 
         Ok(StepOutput {
             data: result.data,
@@ -243,6 +259,7 @@ impl SubWorkflowStep {
 
     /// Execute the sub-workflow using the provided runtime
     /// This ensures events are emitted to the parent's event stream
+    /// and allows sharing parent's chat history context
     pub(crate) fn execute_with_runtime<'a>(
         &'a self,
         input: StepInput,
@@ -256,6 +273,12 @@ impl SubWorkflowStep {
 
             // Override initial input with step input
             sub_workflow.initial_input = input.data.clone();
+
+            // Share parent's workflow context if it exists
+            // This allows sub-workflow agents to continue the conversation
+            if let Some(parent_context) = input.workflow_context {
+                sub_workflow.context = Some(parent_context);
+            }
 
             // Execute the sub-workflow with parent context
             let parent_workflow_id = Some(input.metadata.workflow_id.clone());

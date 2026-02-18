@@ -60,6 +60,7 @@ mod tests {
                 previous_step: Some("previous".to_string()),
                 workflow_id: "wf_123".to_string(),
             },
+            workflow_context: None,
         };
 
         assert_eq!(input.metadata.step_index, 1);
