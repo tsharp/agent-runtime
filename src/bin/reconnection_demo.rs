@@ -4,7 +4,6 @@
 /// without losing events using the EventStream's history replay feature.
 ///
 /// Run with: cargo run --bin reconnection_demo
-
 use agent_runtime::event::{Event, EventScope, EventStream, EventType};
 use std::time::Duration;
 use tokio::time::sleep;
@@ -95,7 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stream_clone = stream.clone();
     tokio::spawn(async move {
         sleep(Duration::from_millis(500)).await; // Give client time to subscribe
-        
+
         for i in 0..20 {
             let _ = stream_clone
                 .append(
@@ -115,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 i,
                 (i as f64 * 0.3)
             );
-            
+
             sleep(Duration::from_millis(300)).await;
         }
     });
