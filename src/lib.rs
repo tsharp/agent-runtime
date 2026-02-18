@@ -1,6 +1,8 @@
 // Core modules
 pub mod agent;
 pub mod config;
+pub mod context;
+pub mod context_strategies;
 pub mod error;
 pub mod event;
 pub mod llm;
@@ -22,6 +24,10 @@ pub use config::{
     LlamaConfig, LlmConfig, LoggingConfig, OpenAIConfig, RetryConfig, RuntimeConfig,
     TimeoutConfigSettings, WorkflowConfig,
 };
+pub use context::{
+    ContextError, ContextManager, MergeStrategy, NoOpManager, WorkflowContext, WorkflowMetadata,
+};
+pub use context_strategies::{SlidingWindowManager, TokenBudgetManager};
 pub use error::{
     AgentError, AgentErrorCode, ConfigError, ConfigErrorCode, LlmError, LlmErrorCode, RuntimeError,
     ToolError, ToolErrorCode, WorkflowError, WorkflowErrorCode,

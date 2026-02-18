@@ -84,6 +84,7 @@ impl Runtime {
                     },
                     workflow_id: workflow_id.clone(),
                 },
+                workflow_context: workflow.context.clone(),
             };
 
             // Execute step - special handling for SubWorkflowStep

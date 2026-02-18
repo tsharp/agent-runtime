@@ -1,7 +1,9 @@
+use crate::context::WorkflowContext;
 use crate::event::EventStream;
 use crate::types::JsonValue;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock};
 
 /// Types of steps that can be in a workflow
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -20,6 +22,10 @@ pub enum StepType {
 pub struct StepInput {
     pub data: JsonValue,
     pub metadata: StepInputMetadata,
+    
+    /// Optional workflow-managed chat history context
+    #[serde(skip)]
+    pub workflow_context: Option<Arc<RwLock<WorkflowContext>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
