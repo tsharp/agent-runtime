@@ -21,9 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .with_response(
                 "Analysis Agent: Based on the research mentioning A, B, C, factor A is critical.",
             )
-            .with_response(
-                "Summary Agent: Synthesizing conversation history: Focus on factor A.",
-            )
+            .with_response("Summary Agent: Synthesizing conversation history: Focus on factor A.")
             .with_response("Main Agent: Now executing detailed analysis sub-workflow...")
             .with_response("Detail Agent 1: Deep dive on factor A shows X, Y, Z.")
             .with_response("Detail Agent 2: Cross-referencing findings: Z is most important.")
@@ -86,8 +84,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ctx.clone()
     };
 
-    println!("   • Captured {} messages in checkpoint", checkpoint.chat_history.len());
-    println!("   • Context size: {} tokens", checkpoint.max_context_tokens);
+    println!(
+        "   • Captured {} messages in checkpoint",
+        checkpoint.chat_history.len()
+    );
+    println!(
+        "   • Context size: {} tokens",
+        checkpoint.max_context_tokens
+    );
 
     // Simulate saving to external storage
     let serialized = serde_json::to_string(&checkpoint)?;
@@ -190,7 +194,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Show sample of history
     println!("\n   Sample messages:");
-    for (_i, msg) in final_history.iter().take(6).enumerate() {
+    for msg in final_history.iter().take(6) {
         let truncated = if msg.content.len() > 60 {
             format!("{}...", &msg.content[..60])
         } else {

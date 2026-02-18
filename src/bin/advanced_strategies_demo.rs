@@ -38,35 +38,55 @@ async fn demo_message_type_manager() {
     // Keep max 10 messages, preserve last 3 user/assistant pairs
     let manager = Arc::new(MessageTypeManager::new(10, 3));
 
-    let agent1 = Agent::new(AgentConfig::builder("data_analyzer")
-        .system_prompt("You are a data analyzer.")
-        .build())
-        .with_llm_client(mock_llm.clone());
+    let agent1 = Agent::new(
+        AgentConfig::builder("data_analyzer")
+            .system_prompt("You are a data analyzer.")
+            .build(),
+    )
+    .with_llm_client(mock_llm.clone());
 
-    let agent2 = Agent::new(AgentConfig::builder("recommender")
-        .system_prompt("You provide recommendations.")
-        .build())
-        .with_llm_client(mock_llm.clone());
+    let agent2 = Agent::new(
+        AgentConfig::builder("recommender")
+            .system_prompt("You provide recommendations.")
+            .build(),
+    )
+    .with_llm_client(mock_llm.clone());
 
-    let agent3 = Agent::new(AgentConfig::builder("reporter")
-        .system_prompt("You create reports.")
-        .build())
-        .with_llm_client(mock_llm.clone());
+    let agent3 = Agent::new(
+        AgentConfig::builder("reporter")
+            .system_prompt("You create reports.")
+            .build(),
+    )
+    .with_llm_client(mock_llm.clone());
 
-    let agent4 = Agent::new(AgentConfig::builder("finalizer")
-        .system_prompt("You finalize outputs.")
-        .build())
-        .with_llm_client(mock_llm);
+    let agent4 = Agent::new(
+        AgentConfig::builder("finalizer")
+            .system_prompt("You finalize outputs.")
+            .build(),
+    )
+    .with_llm_client(mock_llm);
 
     let workflow = Workflow::builder()
         .name("message_type_demo".to_string())
         .with_chat_history(manager)
         .with_max_context_tokens(1000) // Small context to force pruning
         .with_input_output_ratio(3.0)
-        .add_step(Box::new(AgentStep::from_agent(agent1, "agent1".to_string())))
-        .add_step(Box::new(AgentStep::from_agent(agent2, "agent2".to_string())))
-        .add_step(Box::new(AgentStep::from_agent(agent3, "agent3".to_string())))
-        .add_step(Box::new(AgentStep::from_agent(agent4, "agent4".to_string())))
+        .add_step(Box::new(AgentStep::from_agent(
+            agent1,
+            "agent1".to_string(),
+        )))
+        .add_step(Box::new(AgentStep::from_agent(
+            agent2,
+            "agent2".to_string(),
+        )))
+        .add_step(Box::new(AgentStep::from_agent(
+            agent3,
+            "agent3".to_string(),
+        )))
+        .add_step(Box::new(AgentStep::from_agent(
+            agent4,
+            "agent4".to_string(),
+        )))
         .initial_input(json!("Analyze Q4 sales data"))
         .build();
 
@@ -76,13 +96,27 @@ async fn demo_message_type_manager() {
     let _result = runtime.execute(workflow).await;
 
     let final_ctx = ctx_ref.read().unwrap();
-    println!("Final history length: {} messages", final_ctx.chat_history.len());
+    println!(
+        "Final history length: {} messages",
+        final_ctx.chat_history.len()
+    );
     println!("Messages (last 5):");
-    for (i, msg) in final_ctx.chat_history.iter().rev().take(5).rev().enumerate() {
-        println!("  {}. [{:?}] {}", i + 1, msg.role, 
-            msg.content.chars().take(60).collect::<String>());
+    for (i, msg) in final_ctx
+        .chat_history
+        .iter()
+        .rev()
+        .take(5)
+        .rev()
+        .enumerate()
+    {
+        println!(
+            "  {}. [{:?}] {}",
+            i + 1,
+            msg.role,
+            msg.content.chars().take(60).collect::<String>()
+        );
     }
-    
+
     println!("\n✓ MessageTypeManager preserved critical conversation pairs");
     println!("  while pruning less important messages");
 }
@@ -108,10 +142,12 @@ async fn demo_summarization_manager() {
 
     let agents: Vec<_> = (1..=5)
         .map(|i| {
-            Agent::new(AgentConfig::builder(format!("step_{}", i))
-                .system_prompt(format!("You are step {} of the analysis pipeline", i))
-                .build())
-                .with_llm_client(mock_llm.clone())
+            Agent::new(
+                AgentConfig::builder(format!("step_{}", i))
+                    .system_prompt(format!("You are step {} of the analysis pipeline", i))
+                    .build(),
+            )
+            .with_llm_client(mock_llm.clone())
         })
         .collect();
 
@@ -138,12 +174,17 @@ async fn demo_summarization_manager() {
     let _result = runtime.execute(workflow).await;
 
     let final_ctx = ctx_ref.read().unwrap();
-    println!("Final history length: {} messages", final_ctx.chat_history.len());
-    
+    println!(
+        "Final history length: {} messages",
+        final_ctx.chat_history.len()
+    );
+
     // Check if summarization occurred
-    let has_summary = final_ctx.chat_history.iter()
+    let has_summary = final_ctx
+        .chat_history
+        .iter()
         .any(|msg| msg.content.contains("Summary of previous conversation"));
-    
+
     if has_summary {
         println!("\n✓ SummarizationManager created compressed summary:");
         for msg in &final_ctx.chat_history {
@@ -152,11 +193,22 @@ async fn demo_summarization_manager() {
             }
         }
     }
-    
+
     println!("\nRecent messages (preserved):");
-    for (i, msg) in final_ctx.chat_history.iter().rev().take(2).rev().enumerate() {
+    for (i, msg) in final_ctx
+        .chat_history
+        .iter()
+        .rev()
+        .take(2)
+        .rev()
+        .enumerate()
+    {
         if msg.role == Role::Assistant {
-            println!("  {}. {}", i + 1, msg.content.chars().take(70).collect::<String>());
+            println!(
+                "  {}. {}",
+                i + 1,
+                msg.content.chars().take(70).collect::<String>()
+            );
         }
     }
 }
@@ -174,7 +226,7 @@ async fn demo_strategy_comparison() {
                 .with_response("Response 2")
                 .with_response("Response 3")
                 .with_response("Response 4")
-                .with_response("Response 5")
+                .with_response("Response 5"),
         )
     };
 
@@ -212,10 +264,12 @@ async fn run_workflow_with_manager(
 ) -> usize {
     let agents: Vec<_> = (1..=5)
         .map(|i| {
-            Agent::new(AgentConfig::builder(format!("agent_{}", i))
-                .system_prompt(format!("Agent {}", i))
-                .build())
-                .with_llm_client(llm.clone())
+            Agent::new(
+                AgentConfig::builder(format!("agent_{}", i))
+                    .system_prompt(format!("Agent {}", i))
+                    .build(),
+            )
+            .with_llm_client(llm.clone())
         })
         .collect();
 

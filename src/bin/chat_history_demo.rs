@@ -112,7 +112,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!();
 
         for (i, msg) in history.iter().enumerate() {
-            println!("   [{:?}] {}", msg.role, 
+            println!(
+                "   [{:?}] {}",
+                msg.role,
                 if msg.content.len() > 80 {
                     format!("{}...", &msg.content[..80])
                 } else {

@@ -34,10 +34,21 @@ async fn test_workflow_with_chat_history() {
     let workflow = Workflow::builder()
         .name("chat_history_test".to_string())
         .with_chat_history(context_manager)
-        .add_step(Box::new(AgentStep::from_agent(agent1, "agent1".to_string())))
-        .add_step(Box::new(AgentStep::from_agent(agent2, "agent2".to_string())))
-        .add_step(Box::new(AgentStep::from_agent(agent3, "agent3".to_string())))
-        .initial_input(json!("What is the answer to life, the universe, and everything?"))
+        .add_step(Box::new(AgentStep::from_agent(
+            agent1,
+            "agent1".to_string(),
+        )))
+        .add_step(Box::new(AgentStep::from_agent(
+            agent2,
+            "agent2".to_string(),
+        )))
+        .add_step(Box::new(AgentStep::from_agent(
+            agent3,
+            "agent3".to_string(),
+        )))
+        .initial_input(json!(
+            "What is the answer to life, the universe, and everything?"
+        ))
         .build();
 
     // Verify context was created
@@ -61,11 +72,19 @@ async fn test_workflow_with_chat_history() {
         // Should have accumulated messages from all agent interactions
         // Note: The history grows as agents share context
         // Minimum: system prompt + multiple turns
-        assert!(history.len() >= 3, "Expected at least 3 messages in history, got {}", history.len());
+        assert!(
+            history.len() >= 3,
+            "Expected at least 3 messages in history, got {}",
+            history.len()
+        );
 
         // Verify the last message contains something from agent 3
         let last_msg = history.last().unwrap();
-        assert!(last_msg.content.contains("agent 3") || last_msg.content.contains("wrapping") || last_msg.content.contains("42"));
+        assert!(
+            last_msg.content.contains("agent 3")
+                || last_msg.content.contains("wrapping")
+                || last_msg.content.contains("42")
+        );
     }
 }
 
@@ -163,7 +182,7 @@ async fn test_sliding_window_manager() {
 
     let workflow = builder.build();
     let context_ref = workflow.context.clone();
-    
+
     let runtime = Runtime::new();
     let _run = runtime.execute(workflow).await;
 
@@ -174,7 +193,10 @@ async fn test_sliding_window_manager() {
 
         // With sliding window of 5, should not exceed limit significantly
         // (may be slightly over due to system messages)
-        assert!(history.len() <= 10, "History should be pruned: {}", history.len());
+        assert!(
+            history.len() <= 10,
+            "History should be pruned: {}",
+            history.len()
+        );
     }
 }
-

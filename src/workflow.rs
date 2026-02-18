@@ -24,7 +24,7 @@ pub struct Workflow {
     pub steps: Vec<Box<dyn Step>>,
     pub initial_input: JsonValue,
     pub state: WorkflowState,
-    
+
     /// Optional workflow-managed chat history context
     pub context: Option<Arc<RwLock<WorkflowContext>>>,
 }

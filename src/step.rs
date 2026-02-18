@@ -22,7 +22,7 @@ pub enum StepType {
 pub struct StepInput {
     pub data: JsonValue,
     pub metadata: StepInputMetadata,
-    
+
     /// Optional workflow-managed chat history context
     #[serde(skip)]
     pub workflow_context: Option<Arc<RwLock<WorkflowContext>>>,

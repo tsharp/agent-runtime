@@ -65,20 +65,26 @@ async fn test_checkpoint_and_restore_context() {
     let restored_workflow = Workflow::builder()
         .name("checkpoint_test_restored".to_string())
         .with_restored_context(restored_checkpoint)
-        .add_step(Box::new(AgentStep::from_agent(agent2, "agent2".to_string())))
+        .add_step(Box::new(AgentStep::from_agent(
+            agent2,
+            "agent2".to_string(),
+        )))
         .initial_input(json!("Continue"))
         .build();
 
     // Verify restored context
     let ctx_ref = restored_workflow.context().expect("Should have context");
-    let ctx = ctx_ref.read().unwrap();
-    assert!(!ctx.chat_history.is_empty());
-    assert_eq!(ctx.max_context_tokens, 24_000);
-
-    drop(ctx); // Release lock
+    {
+        let ctx = ctx_ref.read().unwrap();
+        assert!(!ctx.chat_history.is_empty());
+        assert_eq!(ctx.max_context_tokens, 24_000);
+    } // Release lock before await
 
     // Keep reference before execution
-    let restored_ctx_ref = restored_workflow.context().cloned().expect("Should have context");
+    let restored_ctx_ref = restored_workflow
+        .context()
+        .cloned()
+        .expect("Should have context");
 
     // Execute with restored context
     let _run2 = runtime.execute(restored_workflow).await;
@@ -103,8 +109,12 @@ async fn test_external_checkpoint_workflow() {
         .name("external_checkpoint".to_string())
         .with_chat_history(Arc::new(TokenBudgetManager::new(24_000, 3.0)))
         .add_step(Box::new(AgentStep::from_agent(
-            Agent::new(AgentConfig::builder("agent1").system_prompt("Agent 1").build())
-                .with_llm_client(mock_llm.clone()),
+            Agent::new(
+                AgentConfig::builder("agent1")
+                    .system_prompt("Agent 1")
+                    .build(),
+            )
+            .with_llm_client(mock_llm.clone()),
             "agent1".to_string(),
         )))
         .initial_input(json!("Start"))
@@ -132,13 +142,21 @@ async fn test_external_checkpoint_workflow() {
         .name("external_checkpoint_continued".to_string())
         .with_restored_context(loaded_checkpoint)
         .add_step(Box::new(AgentStep::from_agent(
-            Agent::new(AgentConfig::builder("agent2").system_prompt("Agent 2").build())
-                .with_llm_client(mock_llm.clone()),
+            Agent::new(
+                AgentConfig::builder("agent2")
+                    .system_prompt("Agent 2")
+                    .build(),
+            )
+            .with_llm_client(mock_llm.clone()),
             "agent2".to_string(),
         )))
         .add_step(Box::new(AgentStep::from_agent(
-            Agent::new(AgentConfig::builder("agent3").system_prompt("Agent 3").build())
-                .with_llm_client(mock_llm),
+            Agent::new(
+                AgentConfig::builder("agent3")
+                    .system_prompt("Agent 3")
+                    .build(),
+            )
+            .with_llm_client(mock_llm),
             "agent3".to_string(),
         )))
         .initial_input(json!("Continue from checkpoint"))

@@ -58,9 +58,8 @@ impl TokenBudgetManager {
         }
 
         // Calculate input budget: total * (ratio / (ratio + 1))
-        let max_input_tokens =
-            (total_context_tokens as f64 * input_output_ratio / (input_output_ratio + 1.0))
-                as usize;
+        let max_input_tokens = (total_context_tokens as f64 * input_output_ratio
+            / (input_output_ratio + 1.0)) as usize;
 
         Self {
             max_input_tokens,
@@ -111,10 +110,7 @@ impl ContextManager for TokenBudgetManager {
             .collect();
 
         // Get messages after system messages
-        let mut remaining: Vec<_> = history
-            .into_iter()
-            .skip(system_messages.len())
-            .collect();
+        let mut remaining: Vec<_> = history.into_iter().skip(system_messages.len()).collect();
 
         // Prune from the front (oldest messages) while over budget
         let target_tokens = self.max_input_tokens;
@@ -122,7 +118,7 @@ impl ContextManager for TokenBudgetManager {
 
         while current_tokens > target_tokens && remaining.len() > self.min_messages_to_keep {
             if let Some(removed) = remaining.first() {
-                let removed_tokens = self.estimate_tokens(&[removed.clone()]);
+                let removed_tokens = self.estimate_tokens(std::slice::from_ref(removed));
                 remaining.remove(0);
                 current_tokens = current_tokens.saturating_sub(removed_tokens);
             } else {
@@ -253,7 +249,7 @@ impl ContextManager for SlidingWindowManager {
 pub struct MessageTypeManager {
     /// Maximum messages to keep
     max_messages: usize,
-    
+
     /// Number of recent user/assistant pairs to always keep
     keep_recent_pairs: usize,
 }
@@ -297,10 +293,10 @@ impl MessageTypeManager {
         // Walk backwards to find user/assistant pairs
         while i > 0 && pairs_found < keep_pairs {
             i -= 1;
-            
+
             if matches!(history[i].role, Role::User | Role::Assistant) {
                 pair_indices.push(i);
-                
+
                 // If we found an assistant message, look for preceding user message
                 if history[i].role == Role::Assistant && i > 0 {
                     for j in (0..i).rev() {
@@ -333,7 +329,10 @@ impl ContextManager for MessageTypeManager {
         history.len() > self.max_messages
     }
 
-    async fn prune(&self, history: Vec<ChatMessage>) -> Result<(Vec<ChatMessage>, usize), ContextError> {
+    async fn prune(
+        &self,
+        history: Vec<ChatMessage>,
+    ) -> Result<(Vec<ChatMessage>, usize), ContextError> {
         if history.len() <= self.max_messages {
             return Ok((history, 0));
         }
@@ -358,7 +357,7 @@ impl ContextManager for MessageTypeManager {
         // 4. Build new history with protected messages
         let mut protected_vec: Vec<usize> = protected.iter().copied().collect();
         protected_vec.sort_unstable();
-        
+
         let mut new_history = Vec::new();
         for &idx in &protected_vec {
             if idx < history.len() {
@@ -368,7 +367,7 @@ impl ContextManager for MessageTypeManager {
 
         // If still over limit, keep only most critical
         if new_history.len() > self.max_messages {
-            new_history.sort_by_key(|msg| Self::classify_message(msg));
+            new_history.sort_by_key(Self::classify_message);
             new_history.truncate(self.max_messages);
         }
 
@@ -390,13 +389,13 @@ impl ContextManager for MessageTypeManager {
 pub struct SummarizationManager {
     /// Token threshold that triggers summarization
     summarization_threshold: usize,
-    
+
     /// Target token count for summaries (reserved for future use)
     _summary_token_target: usize,
-    
+
     /// Maximum input tokens allowed
     max_input_tokens: usize,
-    
+
     /// Number of recent messages to never summarize
     keep_recent_count: usize,
 }
@@ -437,13 +436,10 @@ impl SummarizationManager {
     /// call an actual LLM to generate the summary.
     fn create_summary(messages: &[ChatMessage]) -> ChatMessage {
         let mut summary_content = String::from("Summary of previous conversation:\n\n");
-        
+
         // Extract key information from messages
-        let user_messages: Vec<_> = messages
-            .iter()
-            .filter(|m| m.role == Role::User)
-            .collect();
-        
+        let user_messages: Vec<_> = messages.iter().filter(|m| m.role == Role::User).collect();
+
         let assistant_messages: Vec<_> = messages
             .iter()
             .filter(|m| m.role == Role::Assistant)
@@ -483,9 +479,12 @@ impl ContextManager for SummarizationManager {
         current_tokens > self.summarization_threshold
     }
 
-    async fn prune(&self, history: Vec<ChatMessage>) -> Result<(Vec<ChatMessage>, usize), ContextError> {
+    async fn prune(
+        &self,
+        history: Vec<ChatMessage>,
+    ) -> Result<(Vec<ChatMessage>, usize), ContextError> {
         let current_tokens = self.estimate_tokens(&history);
-        
+
         if current_tokens <= self.summarization_threshold {
             return Ok((history, 0));
         }
@@ -536,7 +535,7 @@ impl ContextManager for SummarizationManager {
             // Keep system messages and most recent messages only
             let emergency_keep = self.keep_recent_count / 2;
             new_history.retain(|msg| msg.role == Role::System);
-            
+
             if emergency_keep > 0 && emergency_keep < history.len() {
                 let start_idx = history.len() - emergency_keep;
                 new_history.extend_from_slice(&history[start_idx..]);
@@ -631,10 +630,7 @@ mod tests {
     #[tokio::test]
     async fn test_sliding_window_should_prune() {
         let manager = SlidingWindowManager::new(5);
-        let short_history = vec![
-            ChatMessage::user("msg1"),
-            ChatMessage::assistant("resp1"),
-        ];
+        let short_history = vec![ChatMessage::user("msg1"), ChatMessage::assistant("resp1")];
         let long_history = vec![
             ChatMessage::user("msg1"),
             ChatMessage::assistant("resp1"),
@@ -666,7 +662,7 @@ mod tests {
         // Should keep system + last 3 messages = 4 total
         assert_eq!(pruned.len(), 4);
         assert_eq!(pruned[0].role, Role::System);
-        
+
         // Last messages should be kept
         assert_eq!(pruned[pruned.len() - 1].content, "Recent resp");
         assert_eq!(removed, 3); // Removed 3 messages
@@ -676,7 +672,7 @@ mod tests {
     fn test_token_estimation() {
         let manager = TokenBudgetManager::new(1000, 1.0);
         let messages = vec![
-            ChatMessage::user("test"), // 4 chars = ~1 token + 1 role = 2
+            ChatMessage::user("test"),             // 4 chars = ~1 token + 1 role = 2
             ChatMessage::assistant("hello world"), // 11 chars = ~2 tokens + 1 role = 3
         ];
 
@@ -713,10 +709,10 @@ mod tests {
         // Should keep system + recent pairs
         assert!(pruned.len() <= 10);
         assert!(removed > 0);
-        
+
         // System message should be preserved
         assert!(pruned.iter().any(|m| m.role == Role::System));
-        
+
         // Recent messages should be preserved
         assert!(pruned.iter().any(|m| m.content == "Recent assistant 2"));
     }
@@ -724,12 +720,9 @@ mod tests {
     #[tokio::test]
     async fn test_message_type_manager_should_prune() {
         let manager = MessageTypeManager::new(5, 2);
-        
-        let short_history = vec![
-            ChatMessage::user("msg1"),
-            ChatMessage::assistant("resp1"),
-        ];
-        
+
+        let short_history = vec![ChatMessage::user("msg1"), ChatMessage::assistant("resp1")];
+
         let long_history = vec![
             ChatMessage::system("System"),
             ChatMessage::user("msg1"),
@@ -756,12 +749,12 @@ mod tests {
     #[tokio::test]
     async fn test_summarization_manager_should_prune() {
         let manager = SummarizationManager::new(18_000, 15_000, 500, 10);
-        
+
         let messages = vec![ChatMessage::user("test")];
-        
+
         // Below threshold
         assert!(!manager.should_prune(&messages, 10_000).await);
-        
+
         // Above threshold
         assert!(manager.should_prune(&messages, 20_000).await);
     }
@@ -769,7 +762,7 @@ mod tests {
     #[tokio::test]
     async fn test_summarization_manager_prune() {
         let manager = SummarizationManager::new(18_000, 100, 50, 3);
-        
+
         let history = vec![
             ChatMessage::system("System prompt"),
             ChatMessage::user("Old message 1"),
@@ -789,24 +782,28 @@ mod tests {
         // Should have summarized old messages and kept recent ones
         // Or at least attempted to compress
         println!("Pruned: {} messages, removed: {}", pruned.len(), removed);
-        
+
         // System message should be preserved
-        assert!(pruned.iter().any(|m| m.role == Role::System && m.content == "System prompt"));
-        
+        assert!(pruned
+            .iter()
+            .any(|m| m.role == Role::System && m.content == "System prompt"));
+
         // Recent messages should be preserved (last 3 messages)
         assert!(pruned.iter().any(|m| m.content == "Recent response 2"));
         assert!(pruned.iter().any(|m| m.content == "Recent message 2"));
-        
+
         // Should contain a summary message if we actually summarized
         if removed > 0 {
-            assert!(pruned.iter().any(|m| m.content.contains("Summary of previous conversation")));
+            assert!(pruned
+                .iter()
+                .any(|m| m.content.contains("Summary of previous conversation")));
         }
     }
 
     #[tokio::test]
     async fn test_summarization_preserves_system_messages() {
         let manager = SummarizationManager::new(18_000, 100, 50, 2);
-        
+
         let history = vec![
             ChatMessage::system("System prompt 1"),
             ChatMessage::user("msg1"),

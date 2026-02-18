@@ -26,7 +26,7 @@ impl WorkflowContext {
             chat_history: Vec::new(),
             metadata: WorkflowMetadata::default(),
             max_context_tokens: 128_000, // Default to 128k
-            input_output_ratio: 4.0,      // Default 4:1 ratio
+            input_output_ratio: 4.0,     // Default 4:1 ratio
         }
     }
 
@@ -195,9 +195,10 @@ impl ContextManager for NoOpManager {
 }
 
 /// Merge strategy for combining sub-workflow context back into parent
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum MergeStrategy {
     /// Only add the sub-workflow's final output as a message
+    #[default]
     AppendResults,
 
     /// Include all sub-workflow messages (verbose)
@@ -208,12 +209,6 @@ pub enum MergeStrategy {
 
     /// Don't propagate any context back to parent
     Discard,
-}
-
-impl Default for MergeStrategy {
-    fn default() -> Self {
-        Self::AppendResults
-    }
 }
 
 #[cfg(test)]
@@ -252,10 +247,7 @@ mod tests {
     #[test]
     fn test_append_messages() {
         let mut ctx = WorkflowContext::new();
-        let messages = vec![
-            ChatMessage::system("test"),
-            ChatMessage::user("hello"),
-        ];
+        let messages = vec![ChatMessage::system("test"), ChatMessage::user("hello")];
         ctx.append_messages(messages);
         assert_eq!(ctx.chat_history.len(), 2);
     }
@@ -287,7 +279,7 @@ mod tests {
     fn test_noop_manager_token_estimation() {
         let manager = NoOpManager::new();
         let messages = vec![
-            ChatMessage::user("test"), // 4 chars = ~1 token
+            ChatMessage::user("test"),             // 4 chars = ~1 token
             ChatMessage::assistant("hello world"), // 11 chars = ~2 tokens
         ];
         let tokens = manager.estimate_tokens(&messages);
