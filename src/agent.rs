@@ -152,12 +152,16 @@ impl Agent {
 
         // Emit Agent::Started event
         if let Some(stream) = event_stream {
+            let start_payload = serde_json::json!({
+                "agent": self.config.name.clone(),
+                "workflow_id": workflow_id.clone(),
+                "input": input.data.clone(),
+            });
+
             stream.agent_started(
                 &self.config.name,
                 workflow_id.clone(),
-                serde_json::json!({
-                    "input": input.data,
-                }),
+                start_payload,
             );
         }
 
