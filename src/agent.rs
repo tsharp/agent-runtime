@@ -169,9 +169,20 @@ impl Agent {
         if let Some(client) = &self.llm_client {
             // Build messages from chat_history OR from input data
             let messages = if let Some(history) = &input.chat_history {
-                // Use provided chat history as-is
-                // Outer layer is managing the conversation context
-                history.clone()
+                // Prepend agent system prompt if the history has no system message
+                let has_system = history
+                    .first()
+                    .map(|m| m.role == crate::llm::types::Role::System)
+                    .unwrap_or(false);
+
+                if has_system || self.config.system_prompt.is_empty() {
+                    history.clone()
+                } else {
+                    let mut msgs = Vec::with_capacity(history.len() + 1);
+                    msgs.push(ChatMessage::system(&self.config.system_prompt));
+                    msgs.extend_from_slice(history);
+                    msgs
+                }
             } else {
                 // Build messages from scratch (legacy behavior)
                 let user_message = if let Some(s) = input.data.as_str() {
