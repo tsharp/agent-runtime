@@ -26,6 +26,15 @@ pub struct ChatMessage {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+
+    /// Provenance: which agent produced this message.
+    /// Skipped when `None` so untagged messages stay compact.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_id: Option<String>,
+
+    /// Provenance: which workflow this message belongs to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workflow_id: Option<String>,
 }
 
 impl ChatMessage {
@@ -35,6 +44,8 @@ impl ChatMessage {
             content: content.into(),
             tool_calls: None,
             tool_call_id: None,
+            agent_id: None,
+            workflow_id: None,
         }
     }
 
@@ -44,6 +55,8 @@ impl ChatMessage {
             content: content.into(),
             tool_calls: None,
             tool_call_id: None,
+            agent_id: None,
+            workflow_id: None,
         }
     }
 
@@ -53,6 +66,8 @@ impl ChatMessage {
             content: content.into(),
             tool_calls: None,
             tool_call_id: None,
+            agent_id: None,
+            workflow_id: None,
         }
     }
 
@@ -65,6 +80,8 @@ impl ChatMessage {
             content: content.into(),
             tool_calls: Some(tool_calls),
             tool_call_id: None,
+            agent_id: None,
+            workflow_id: None,
         }
     }
 
@@ -74,7 +91,20 @@ impl ChatMessage {
             content: content.into(),
             tool_calls: None,
             tool_call_id: Some(tool_call_id.into()),
+            agent_id: None,
+            workflow_id: None,
         }
+    }
+
+    /// Attach provenance metadata to this message (builder-style).
+    pub fn with_provenance(
+        mut self,
+        agent_id: impl Into<String>,
+        workflow_id: impl Into<String>,
+    ) -> Self {
+        self.agent_id = Some(agent_id.into());
+        self.workflow_id = Some(workflow_id.into());
+        self
     }
 }
 
