@@ -1,5 +1,4 @@
 use crate::error::RuntimeError;
-use rand::Rng;
 use std::time::Duration;
 
 /// Policy for retrying failed operations with exponential backoff
@@ -89,8 +88,7 @@ impl RetryPolicy {
 
         // Add jitter
         let jittered = if self.jitter_factor > 0.0 {
-            let mut rng = rand::thread_rng();
-            let jitter = rng.gen::<f64>() * self.jitter_factor * clamped;
+            let jitter = rand::random::<f64>() * self.jitter_factor * clamped;
             clamped + jitter
         } else {
             clamped

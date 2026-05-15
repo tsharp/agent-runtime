@@ -469,6 +469,8 @@ impl SummarizationManager {
             content: summary_content,
             tool_calls: None,
             tool_call_id: None,
+            agent_id: None,
+            workflow_id: None,
         }
     }
 }

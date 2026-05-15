@@ -23,6 +23,10 @@ pub struct AgentConfig {
 
     pub max_tool_iterations: usize,
 
+    /// Strip <think>...</think> reasoning blocks from responses before
+    /// storing in chat history or returning as output. Default: true.
+    pub strip_think_blocks: bool,
+
     /// Tool loop detection configuration
     #[serde(skip)]
     pub tool_loop_detection: Option<ToolLoopDetectionConfig>,
@@ -38,6 +42,7 @@ impl std::fmt::Debug for AgentConfig {
                 &self.tools.as_ref().map(|t| format!("{} tools", t.len())),
             )
             .field("max_tool_iterations", &self.max_tool_iterations)
+            .field("strip_think_blocks", &self.strip_think_blocks)
             .field(
                 "tool_loop_detection",
                 &self.tool_loop_detection.as_ref().map(|c| c.enabled),
@@ -53,6 +58,7 @@ impl AgentConfig {
             system_prompt: String::new(),
             tools: None,
             max_tool_iterations: 10,
+            strip_think_blocks: false,
             tool_loop_detection: Some(ToolLoopDetectionConfig::default()),
         }
     }
@@ -64,6 +70,7 @@ pub struct AgentConfigBuilder {
     system_prompt: String,
     tools: Option<Arc<ToolRegistry>>,
     max_tool_iterations: usize,
+    strip_think_blocks: bool,
     tool_loop_detection: Option<ToolLoopDetectionConfig>,
 }
 
@@ -93,12 +100,19 @@ impl AgentConfigBuilder {
         self
     }
 
+    /// Whether to strip `<think>...</think>` blocks from responses (default: true).
+    pub fn strip_think_blocks(mut self, strip: bool) -> Self {
+        self.strip_think_blocks = strip;
+        self
+    }
+
     pub fn build(self) -> AgentConfig {
         AgentConfig {
             name: self.name,
             system_prompt: self.system_prompt,
             tools: self.tools,
             max_tool_iterations: self.max_tool_iterations,
+            strip_think_blocks: self.strip_think_blocks,
             tool_loop_detection: self.tool_loop_detection,
         }
     }
@@ -169,9 +183,49 @@ impl Agent {
         if let Some(client) = &self.llm_client {
             // Build messages from chat_history OR from input data
             let messages = if let Some(history) = &input.chat_history {
-                // Use provided chat history as-is
-                // Outer layer is managing the conversation context
-                history.clone()
+                // Always strip any existing system message and prepend this
+                // agent's own system prompt so each agent in a chain operates
+                // under its own persona regardless of what previous agents left.
+                let non_system: Vec<_> = history
+                    .iter()
+                    .filter(|m| m.role != crate::llm::types::Role::System)
+                    .cloned()
+                    .collect();
+
+                let mut msgs: Vec<ChatMessage> = Vec::with_capacity(non_system.len() + 1);
+                if !self.config.system_prompt.is_empty() {
+                    msgs.push(ChatMessage::system(&self.config.system_prompt));
+                }
+                msgs.extend(non_system);
+
+                // If the history ends with a non-user message the LLM has no new
+                // prompt to respond to. Append a user turn derived from input.data
+                // so the chained agent knows what to act on.
+                let needs_user_turn = msgs
+                    .last()
+                    .map(|m| m.role != crate::llm::types::Role::User)
+                    .unwrap_or(true);
+
+                if needs_user_turn && !input.data.is_null() {
+                    // If data is a step-output JSON with a "response" key, use that;
+                    // otherwise serialise the whole value.
+                    let user_text = input
+                        .data
+                        .get("response")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| {
+                            if let Some(s) = input.data.as_str() {
+                                s.to_string()
+                            } else {
+                                serde_json::to_string_pretty(&input.data)
+                                    .unwrap_or_default()
+                            }
+                        });
+                    msgs.push(ChatMessage::user(user_text));
+                }
+
+                msgs
             } else {
                 // Build messages from scratch (legacy behavior)
                 let user_message = if let Some(s) = input.data.as_str() {
@@ -409,7 +463,13 @@ impl Agent {
                         }
 
                         // No tool calls (or empty array), we have the final response
-                        let response_text = response.content.trim();
+                        let raw_response = response.content.trim();
+                        let response_text = if self.config.strip_think_blocks {
+                            strip_think_blocks(raw_response)
+                        } else {
+                            raw_response.to_string()
+                        };
+
                         let token_count = response
                             .usage
                             .map(|u| u.total_tokens)
@@ -421,8 +481,11 @@ impl Agent {
                             "token_count": token_count,
                         });
 
-                        // Add final assistant response to chat history
-                        request.messages.push(ChatMessage::assistant(response_text));
+                        // Add final assistant response with provenance to chat history
+                        request.messages.push(
+                            ChatMessage::assistant(&response_text)
+                                .with_provenance(&self.config.name, &workflow_id),
+                        );
 
                         // Emit Agent::Completed event
                         if let Some(stream) = event_stream {
@@ -512,6 +575,38 @@ impl Agent {
         }
     }
 
+}
+
+/// Strip `<think>...</think>` blocks from model output.
+///
+/// Some reasoning models (e.g. Qwen-thinking, DeepSeek-R1) wrap their
+/// chain-of-thought in these tags. We remove them from chat history and
+/// output so downstream agents and callers only see the final answer.
+fn strip_think_blocks(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut remaining = text;
+
+    while let Some(start) = remaining.to_lowercase().find("<think>") {
+        // Keep everything before the opening tag
+        result.push_str(&remaining[..start]);
+
+        // Find the matching closing tag (case-insensitive)
+        let after_open = &remaining[start + 7..]; // skip "<think>"
+        if let Some(end) = after_open.to_lowercase().find("</think>") {
+            // Skip past the closing tag
+            remaining = &after_open[end + 8..];
+        } else {
+            // No closing tag found — drop everything from <think> onward
+            remaining = "";
+            break;
+        }
+    }
+
+    result.push_str(remaining);
+    result.trim().to_string()
+}
+
+impl Agent {
     /// Execute a single tool call
     async fn execute_tool_call(
         &self,

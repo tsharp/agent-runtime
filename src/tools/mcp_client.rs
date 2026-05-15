@@ -102,6 +102,7 @@ impl McpClient {
             handler: handler.to_mcp_client_handler(),
             task_store: None,
             server_task_store: None,
+            message_observer: None,
         });
 
         client

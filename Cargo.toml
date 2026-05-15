@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/agent-discourse",
 ]
 
 [workspace.package]
@@ -40,12 +41,13 @@ async-trait = "0.1"
 thiserror = "1.0"
 uuid = { version = "1.0", features = ["v4"] }
 inventory = "0.3"
-dashmap = "5.5"
-parking_lot = "0.12"
-futures = "0.3"
-chrono = { version = "0.4", features = ["serde"] }
-rand = "0.8"
+dashmap = "6.1.0"
+parking_lot = "0.12.5"
+futures = "0.3.32"
+chrono = { version = "0.4.44", features = ["serde"] }
+rand = "0.10.0"
 md5 = "0.7"
+papaya = "0.2.4"
 
 # Configuration
 config = "0.14"
@@ -53,7 +55,7 @@ toml = "0.8"
 serde_yaml = "0.9"
 
 # MCP - Model Context Protocol
-rust-mcp-sdk = { version = "0.8", features = ["client"] }
+rust-mcp-sdk = { version = "0.9", features = ["client"] }
 
 # Optional - HTTP transport (client)
 reqwest = { version = "0.11", features = ["json", "stream"] }
@@ -108,6 +110,26 @@ path = "src/bin/llm_demo.rs"
 [[bin]]
 name = "llama_demo"
 path = "src/bin/llama_demo.rs"
+
+[[bin]]
+name = "two_agent_chain_demo"
+path = "src/bin/two_agent_chain_demo.rs"
+
+[[bin]]
+name = "multi_user_message_demo"
+path = "src/bin/multi_user_message_demo.rs"
+
+[[bin]]
+name = "multi_agent_discourse_demo"
+path = "src/bin/multi_agent_discourse_demo.rs"
+
+[[bin]]
+name = "scene_actor_demo"
+path = "src/bin/scene_actor_demo.rs"
+
+[[bin]]
+name = "agent_context_demo"
+path = "src/bin/agent_context_demo.rs"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
