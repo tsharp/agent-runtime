@@ -34,9 +34,9 @@ autotests = false
 
 [features]
 default = []
-# Enables the workflow runtime: `Workflow`, `WorkflowBuilder`, `Runtime`,
+# Enables the workflow runtime : `Workflow`, `WorkflowBuilder`, `Runtime`,
 # `WorkflowContext`, `ContextManager` strategies, and all built-in `Step`
-# implementations (`AgentStep`, `TransformStep`, `ConditionalStep`,
+# implementations(`AgentStep`, `TransformStep`, `ConditionalStep`,
 # `SubWorkflowStep`). Off by default — enable when you want to compose
 # agents into multi-step pipelines.
 workflow = []
@@ -79,6 +79,7 @@ harness = false
 # --- Integration tests --------------------------------------------------
 # Tests that exercise only Agent/LLM/Tools/Events build in the default
 # feature set.
+
 [[test]]
 name = "chat_history_tests"
 path = "tests/chat_history_tests.rs"
@@ -93,6 +94,7 @@ path = "tests/integration_tests.rs"
 
 # Tests below construct `Workflow`/`Runtime` directly and therefore only
 # compile when the `workflow` feature is enabled.
+
 [[test]]
 name = "checkpoint_tests"
 path = "tests/checkpoint_tests.rs"
