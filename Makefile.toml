@@ -1,0 +1,9 @@
+[tasks.lint]
+description = "Run clippy linting checks"
+command = "cargo"
+args = ["clippy", "--all-targets", "--all-features", "--", "-D", "warnings"]
+
+[tasks.lint-fix]
+description = "Run clippy with auto-fix"
+command = "cargo"
+args = ["clippy", "--all-targets", "--all-features", "--fix", "--allow-dirty", "--", "-D", "warnings"]

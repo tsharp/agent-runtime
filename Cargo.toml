@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/agent-discourse",
+"crates/agent-discourse",
 ]
 
 [workspace.package]
@@ -18,6 +18,7 @@ unsafe_code = "forbid"
 all = "warn"
 
 # Root package - the main MCP library
+
 [package]
 name = "agent-runtime"
 version = "0.3.0"
@@ -57,79 +58,11 @@ serde_yaml = "0.9"
 # MCP - Model Context Protocol
 rust-mcp-sdk = { version = "0.9", features = ["client"] }
 
-# Optional - HTTP transport (client)
+# Optional - HTTP transport(client)
 reqwest = { version = "0.11", features = ["json", "stream"] }
 
-# Optional - HTTP server (for examples)
-actix-web = { version = "4"}
-
-[[bin]]
-name = "advanced_workflow_demo"
-path = "src/bin/advanced_workflow_demo.rs"
-
-[[bin]]
-name = "advanced_strategies_demo"
-path = "src/bin/advanced_strategies_demo.rs"
-
-[[bin]]
-name = "chat_history_demo"
-path = "src/bin/chat_history_demo.rs"
-
-[[bin]]
-name = "hello_workflow"
-path = "src/bin/hello_workflow.rs"
-
-[[bin]]
-name = "multi_subscriber"
-path = "src/bin/multi_subscriber.rs"
-
-[[bin]]
-name = "step_types_demo"
-path = "src/bin/step_types_demo.rs"
-
-[[bin]]
-name = "nested_workflow"
-path = "src/bin/nested_workflow.rs"
-
-[[bin]]
-name = "mermaid_viz"
-path = "src/bin/mermaid_viz.rs"
-
-[[bin]]
-name = "complex_viz"
-path = "src/bin/complex_viz.rs"
-
-[[bin]]
-name = "workflow_demo"
-path = "src/bin/workflow_demo.rs"
-
-[[bin]]
-name = "llm_demo"
-path = "src/bin/llm_demo.rs"
-
-[[bin]]
-name = "llama_demo"
-path = "src/bin/llama_demo.rs"
-
-[[bin]]
-name = "two_agent_chain_demo"
-path = "src/bin/two_agent_chain_demo.rs"
-
-[[bin]]
-name = "multi_user_message_demo"
-path = "src/bin/multi_user_message_demo.rs"
-
-[[bin]]
-name = "multi_agent_discourse_demo"
-path = "src/bin/multi_agent_discourse_demo.rs"
-
-[[bin]]
-name = "scene_actor_demo"
-path = "src/bin/scene_actor_demo.rs"
-
-[[bin]]
-name = "agent_context_demo"
-path = "src/bin/agent_context_demo.rs"
+# Optional - HTTP server(for examples)
+actix-web = { version = "4" }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }

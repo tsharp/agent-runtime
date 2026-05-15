@@ -1,7 +1,7 @@
 #[cfg(test)]
 use crate::llm::types::ChatMessage;
 use crate::llm::types::{ChatRequest, ChatResponse, FunctionCall, ToolCall, Usage};
-use crate::llm::{ChatClient, LlmError};
+use crate::llm::{GenericChatClient, LlmError};
 use async_trait::async_trait;
 #[cfg(test)]
 use serde_json::json;
@@ -175,7 +175,7 @@ impl MockResponse {
 }
 
 #[async_trait]
-impl ChatClient for MockLlmClient {
+impl GenericChatClient for MockLlmClient {
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, LlmError> {
         // Record the call
         self.calls.lock().unwrap().push(request.clone());

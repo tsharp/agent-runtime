@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
@@ -36,7 +38,7 @@ pub enum LlmError {
 
 /// Generic trait for LLM chat clients
 #[async_trait]
-pub trait ChatClient: Send + Sync {
+pub trait GenericChatClient: Send + Sync {
     /// Send a chat completion request
     async fn chat(&self, request: ChatRequest) -> LlmResult<ChatResponse>;
 
@@ -46,4 +48,29 @@ pub trait ChatClient: Send + Sync {
         request: ChatRequest,
         tx: mpsc::Sender<String>,
     ) -> LlmResult<ChatResponse>;
+}
+
+pub struct ChatClient {
+    client: Arc<Box<dyn GenericChatClient>>,
+}
+
+impl ChatClient {
+    pub fn new(client: Arc<Box<dyn GenericChatClient>>) -> Self {
+        Self { client }
+    }
+}
+
+#[async_trait]
+impl GenericChatClient for ChatClient {
+    async fn chat(&self, request: ChatRequest) -> LlmResult<ChatResponse> {
+        self.client.chat(request).await
+    }
+
+    async fn chat_stream(
+        &self,
+        request: ChatRequest,
+        tx: mpsc::Sender<String>,
+    ) -> LlmResult<ChatResponse> {
+        self.client.chat_stream(request, tx).await
+    }
 }

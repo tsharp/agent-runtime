@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::mpsc;
 
+use crate::llm::GenericChatClient;
+
 use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult};
 
 /// Llama.cpp server client (local or remote)
@@ -83,7 +85,7 @@ impl LlamaClient {
 }
 
 #[async_trait]
-impl ChatClient for LlamaClient {
+impl GenericChatClient for LlamaClient {
     async fn chat(&self, request: ChatRequest) -> LlmResult<ChatResponse> {
         let url = format!("{}/chat/completions", self.base_url);
 
@@ -224,7 +226,10 @@ impl ChatClient for LlamaClient {
                     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(json_str) {
                         // Extract model name if present
                         if model_name.is_none() {
-                            model_name = parsed.get("model").and_then(|m| m.as_str()).map(|s| s.to_string());
+                            model_name = parsed
+                                .get("model")
+                                .and_then(|m| m.as_str())
+                                .map(|s| s.to_string());
                         }
 
                         // Extract usage if present
@@ -236,22 +241,30 @@ impl ChatClient for LlamaClient {
 
                         if let Some(choice) = parsed.get("choices").and_then(|c| c.get(0)) {
                             // Extract finish_reason
-                            if let Some(reason) = choice.get("finish_reason").and_then(|r| r.as_str()) {
+                            if let Some(reason) =
+                                choice.get("finish_reason").and_then(|r| r.as_str())
+                            {
                                 finish_reason = Some(reason.to_string());
                             }
 
                             // Extract delta
                             if let Some(delta) = choice.get("delta") {
                                 // Accumulate content
-                                if let Some(content) = delta.get("content").and_then(|c| c.as_str()) {
+                                if let Some(content) = delta.get("content").and_then(|c| c.as_str())
+                                {
                                     full_content.push_str(content);
                                     let _ = tx.send(content.to_string()).await;
                                 }
 
                                 // Accumulate tool_calls
-                                if let Some(tool_calls_array) = delta.get("tool_calls").and_then(|tc| tc.as_array()) {
+                                if let Some(tool_calls_array) =
+                                    delta.get("tool_calls").and_then(|tc| tc.as_array())
+                                {
                                     for tool_call in tool_calls_array {
-                                        accumulate_stream_tool_call(&mut accumulated_tool_calls, tool_call);
+                                        accumulate_stream_tool_call(
+                                            &mut accumulated_tool_calls,
+                                            tool_call,
+                                        );
                                     }
                                 }
                             }

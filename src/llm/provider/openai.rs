@@ -3,7 +3,9 @@ use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
-use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult};
+use crate::llm::GenericChatClient;
+
+use super::super::{ChatRequest, ChatResponse, LlmError, LlmResult};
 
 const OPENAI_API_URL: &str = "https://api.openai.com/v1/chat/completions";
 
@@ -41,7 +43,7 @@ impl OpenAIClient {
 }
 
 #[async_trait]
-impl ChatClient for OpenAIClient {
+impl GenericChatClient for OpenAIClient {
     async fn chat(&self, request: ChatRequest) -> LlmResult<ChatResponse> {
         // Build OpenAI API request
         let openai_request = OpenAIChatRequest {

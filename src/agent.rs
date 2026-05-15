@@ -121,7 +121,7 @@ impl AgentConfigBuilder {
 /// Agent execution unit
 pub struct Agent {
     config: AgentConfig,
-    llm_client: Option<Arc<dyn ChatClient>>,
+    llm_client: Option<Arc<ChatClient>>,
 }
 
 impl Agent {
@@ -132,7 +132,7 @@ impl Agent {
         }
     }
 
-    pub fn with_llm_client(mut self, client: Arc<dyn ChatClient>) -> Self {
+    pub fn with_client(mut self, client: Arc<ChatClient>) -> Self {
         self.llm_client = Some(client);
         self
     }
@@ -172,11 +172,7 @@ impl Agent {
                 "input": input.data.clone(),
             });
 
-            stream.agent_started(
-                &self.config.name,
-                workflow_id.clone(),
-                start_payload,
-            );
+            stream.agent_started(&self.config.name, workflow_id.clone(), start_payload);
         }
 
         // If we have an LLM client, use it
@@ -218,8 +214,7 @@ impl Agent {
                             if let Some(s) = input.data.as_str() {
                                 s.to_string()
                             } else {
-                                serde_json::to_string_pretty(&input.data)
-                                    .unwrap_or_default()
+                                serde_json::to_string_pretty(&input.data).unwrap_or_default()
                             }
                         });
                     msgs.push(ChatMessage::user(user_text));
@@ -574,7 +569,6 @@ impl Agent {
             })
         }
     }
-
 }
 
 /// Strip `<think>...</think>` blocks from model output.
