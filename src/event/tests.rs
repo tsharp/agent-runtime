@@ -1,76 +1,77 @@
-    use crate::event::{ComponentStatus, EventScope, EventStream, EventType};
-    use serde_json::json;
 
-    #[test]
-    fn test_event_stream_creation() {
-        let stream = EventStream::new();
-        assert_eq!(stream.len(), 0);
-        assert!(stream.is_empty());
-        assert_eq!(stream.current_offset(), 0);
-    }
+use crate::event::{ComponentStatus, EventScope, EventStream, EventType};
+use serde_json::json;
 
-    #[tokio::test]
-    async fn test_event_stream_append() {
-        let stream = EventStream::new();
+#[test]
+fn test_event_stream_creation() {
+    let stream = EventStream::new();
+    assert_eq!(stream.len(), 0);
+    assert!(stream.is_empty());
+    assert_eq!(stream.current_offset(), 0);
+}
 
-        let event = stream
-            .workflow_started("wf_123", json!({"step_count": 3}))
-            .await
-            .unwrap()
-            .unwrap();
+#[tokio::test]
+async fn test_event_stream_append() {
+    let stream = EventStream::new();
 
-        assert_eq!(event.offset, 0);
-        assert_eq!(event.scope, EventScope::Workflow);
-        assert_eq!(event.event_type, EventType::Started);
-        assert_eq!(event.component_id, "wf_123");
-        assert_eq!(event.status, ComponentStatus::Running);
-        assert_eq!(event.workflow_id, "wf_123");
+    let event = stream
+        .workflow_started("wf_123", json!({"step_count": 3}))
+        .await
+        .unwrap()
+        .unwrap();
 
-        // Give async task time to complete
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        assert_eq!(stream.len(), 1);
-        assert_eq!(stream.current_offset(), 1);
-    }
+    assert_eq!(event.offset, 0);
+    assert_eq!(event.scope, EventScope::Workflow);
+    assert_eq!(event.event_type, EventType::Started);
+    assert_eq!(event.component_id, "wf_123");
+    assert_eq!(event.status, ComponentStatus::Running);
+    assert_eq!(event.workflow_id, "wf_123");
 
-    #[tokio::test]
-    async fn test_event_stream_multiple_events() {
-        let stream = EventStream::new();
+    // Give async task time to complete
+    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+    assert_eq!(stream.len(), 1);
+    assert_eq!(stream.current_offset(), 1);
+}
 
-        stream.workflow_started("wf_123", json!({}));
-        stream.step_started("wf_123", 0, json!({"step_name": "first"}));
-        stream.step_completed("wf_123", 0, json!({}));
+#[tokio::test]
+async fn test_event_stream_multiple_events() {
+    let stream = EventStream::new();
 
-        // Give async tasks time to complete
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
-        assert_eq!(stream.len(), 3);
-        assert_eq!(stream.current_offset(), 3);
-    }
+    stream.workflow_started("wf_123", json!({}));
+    stream.step_started("wf_123", 0, json!({"step_name": "first"}));
+    stream.step_completed("wf_123", 0, json!({}));
 
-    #[tokio::test]
-    async fn test_event_stream_all() {
-        let stream = EventStream::new();
+    // Give async tasks time to complete
+    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+    assert_eq!(stream.len(), 3);
+    assert_eq!(stream.current_offset(), 3);
+}
 
-        stream.workflow_started("wf_123", json!({}));
-        stream.workflow_completed("wf_123", json!({}));
+#[tokio::test]
+async fn test_event_stream_all() {
+    let stream = EventStream::new();
 
-        // Give async tasks time to complete
-        tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+    stream.workflow_started("wf_123", json!({}));
+    stream.workflow_completed("wf_123", json!({}));
 
-        let all_events = stream.all();
-        assert_eq!(all_events.len(), 2);
-    }
+    // Give async tasks time to complete
+    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
-    #[test]
-    fn test_event_type_serialization() {
-        let event_type = EventType::Started;
-        let json = serde_json::to_string(&event_type).unwrap();
-        assert_eq!(json, "\"started\"");
+    let all_events = stream.all();
+    assert_eq!(all_events.len(), 2);
+}
 
-        let scope = EventScope::LlmRequest;
-        let json = serde_json::to_string(&scope).unwrap();
-        assert_eq!(json, "\"llm_request\"");
+#[test]
+fn test_event_type_serialization() {
+    let event_type = EventType::Started;
+    let json = serde_json::to_string(&event_type).unwrap();
+    assert_eq!(json, "\"started\"");
 
-        let status = ComponentStatus::Running;
-        let json = serde_json::to_string(&status).unwrap();
-        assert_eq!(json, "\"running\"");
-    }
+    let scope = EventScope::LlmRequest;
+    let json = serde_json::to_string(&scope).unwrap();
+    assert_eq!(json, "\"llm_request\"");
+
+    let status = ComponentStatus::Running;
+    let json = serde_json::to_string(&status).unwrap();
+    assert_eq!(json, "\"running\"");
+}
