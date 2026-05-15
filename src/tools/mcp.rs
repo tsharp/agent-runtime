@@ -61,7 +61,7 @@ impl McpClient {
     ///
     /// # Arguments
     /// * `command` - The command to run (e.g., "npx", "python", "node")
-    /// * `args` - Arguments to pass (e.g., ["-y", "@modelcontextprotocol/server-filesystem", "/path"])
+    /// * `args` - Arguments to pass (e.g., `["-y", "@modelcontextprotocol/server-filesystem", "/path"]`)
     ///
     /// # Example MCP Servers
     /// - Filesystem: `npx -y @modelcontextprotocol/server-filesystem /tmp`
