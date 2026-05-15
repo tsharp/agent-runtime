@@ -1,9 +1,16 @@
 use crate::{
     event::{Event, EventStream},
-    step::{StepInput, StepInputMetadata, StepType},
-    step_impls::SubWorkflowStep,
-    workflow::{Workflow, WorkflowRun, WorkflowState, WorkflowStepRecord},
+    workflow::{
+        step::StepInputMetadata, steps::SubWorkflowStep, ExecutionContext, StepInput, StepType,
+        Workflow, WorkflowRun, WorkflowState, WorkflowStepRecord,
+    },
 };
+
+pub mod retry;
+pub mod timeout;
+
+pub use retry::RetryPolicy;
+pub use timeout::{with_timeout, TimeoutConfig};
 
 /// Runtime for executing workflows
 pub struct Runtime {
@@ -94,13 +101,13 @@ impl Runtime {
                 let sub_step = unsafe {
                     // SAFETY: We just checked step_type is SubWorkflow
                     let ptr =
-                        step.as_ref() as *const dyn crate::step::Step as *const SubWorkflowStep;
+                        step.as_ref() as *const dyn crate::workflow::Step as *const SubWorkflowStep;
                     &*ptr
                 };
                 sub_step.execute_with_runtime(input.clone(), self).await
             } else {
                 // Execute with event stream context
-                let ctx = crate::step::ExecutionContext::with_event_stream(&self.event_stream);
+                let ctx = ExecutionContext::with_event_stream(&self.event_stream);
                 step.execute_with_context(input.clone(), ctx).await
             };
 

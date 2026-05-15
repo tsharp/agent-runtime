@@ -17,7 +17,7 @@
 //
 // For now, this provides a working skeleton that integrates with our tool system.
 
-use crate::tool::Tool;
+use crate::tools::registry::Tool;
 use crate::types::{JsonValue, ToolError, ToolResult};
 use async_trait::async_trait;
 use rust_mcp_sdk::{

@@ -1,12 +1,16 @@
 use crate::context::{ContextManager, WorkflowContext};
-use crate::step::{Step, StepType};
 use crate::types::JsonValue;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 
+pub mod step;
+pub mod steps;
+
+pub use step::{ExecutionContext, Step, StepError, StepInput, StepOutput, StepResult, StepType};
+pub use steps::{AgentStep, ConditionalStep, SubWorkflowStep, TransformStep};
+
 #[cfg(test)]
-#[path = "workflow_test.rs"]
-mod workflow_test;
+mod tests;
 
 /// Workflow execution state
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

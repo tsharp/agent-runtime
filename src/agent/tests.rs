@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod tests {
     use crate::agent::{Agent, AgentConfig};
     use crate::types::{AgentInput, AgentInputMetadata};
     use serde_json::json;
@@ -66,4 +64,3 @@ mod tests {
         assert!(debug_str.contains("debug_agent"));
         assert!(debug_str.contains("None"));
     }
-}

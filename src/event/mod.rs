@@ -5,8 +5,7 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::broadcast;
 
 #[cfg(test)]
-#[path = "event_test.rs"]
-mod event_test;
+mod tests;
 
 /// Event scope - which component is emitting the event
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

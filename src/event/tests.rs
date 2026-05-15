@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod tests {
     use crate::event::{ComponentStatus, EventScope, EventStream, EventType};
     use serde_json::json;
 
@@ -76,4 +74,3 @@ mod tests {
         let json = serde_json::to_string(&status).unwrap();
         assert_eq!(json, "\"running\"");
     }
-}

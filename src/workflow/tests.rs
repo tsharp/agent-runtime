@@ -1,5 +1,3 @@
-#[cfg(test)]
-mod tests {
     use crate::{Agent, AgentConfig, AgentStep, Runtime, Workflow, WorkflowState};
     use serde_json::json;
 
@@ -100,4 +98,3 @@ mod tests {
         let state = WorkflowState::Failed;
         assert_eq!(state, WorkflowState::Failed);
     }
-}

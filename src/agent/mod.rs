@@ -1,16 +1,14 @@
 use crate::event::EventStream;
 use crate::llm::types::ToolCall;
 use crate::llm::{ChatMessage, ChatRequest, LlmClient};
-use crate::tool::ToolRegistry;
-use crate::tool_loop_detection::{ToolCallTracker, ToolLoopDetectionConfig};
+use crate::tools::{ToolCallTracker, ToolLoopDetectionConfig, ToolRegistry};
 use crate::types::{AgentError, AgentInput, AgentOutput, AgentOutputMetadata, AgentResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
 #[cfg(test)]
-#[path = "agent_test.rs"]
-mod agent_test;
+mod tests;
 
 /// Agent configuration
 #[derive(Clone, Serialize, Deserialize)]
