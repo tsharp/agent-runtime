@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use futures::stream::StreamExt;
 use reqwest::Client as HttpClient;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tokio::sync::mpsc;
 
 use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult};
@@ -250,24 +251,7 @@ impl ChatClient for LlamaClient {
                                 // Accumulate tool_calls
                                 if let Some(tool_calls_array) = delta.get("tool_calls").and_then(|tc| tc.as_array()) {
                                     for tool_call in tool_calls_array {
-                                        if let Ok(tc) = serde_json::from_value::<LlamaToolCall>(tool_call.clone()) {
-                                            // Check if this tool_call already exists (by index), if so update it
-                                            if let Some(index) = tool_call.get("index").and_then(|i| i.as_u64()) {
-                                                let idx = index as usize;
-                                                if idx < accumulated_tool_calls.len() {
-                                                    // Update existing tool call (append arguments)
-                                                    if let Some(func_args) = tool_call.get("function").and_then(|f| f.get("arguments")).and_then(|a| a.as_str()) {
-                                                        accumulated_tool_calls[idx].function.arguments.push_str(func_args);
-                                                    }
-                                                } else {
-                                                    // New tool call
-                                                    accumulated_tool_calls.push(tc);
-                                                }
-                                            } else {
-                                                // No index, just add it
-                                                accumulated_tool_calls.push(tc);
-                                            }
-                                        }
+                                        accumulate_stream_tool_call(&mut accumulated_tool_calls, tool_call);
                                     }
                                 }
                             }
@@ -307,6 +291,30 @@ impl ChatClient for LlamaClient {
             finish_reason,
             tool_calls,
         })
+    }
+}
+
+fn accumulate_stream_tool_call(accumulated_tool_calls: &mut Vec<LlamaToolCall>, tool_call: &Value) {
+    // First-chunk payloads usually include full tool-call fields and can deserialize.
+    // Later delta chunks often only include index + partial function.arguments.
+    if let Some(index) = tool_call.get("index").and_then(|i| i.as_u64()) {
+        let idx = index as usize;
+        if idx < accumulated_tool_calls.len() {
+            if let Some(func_args) = tool_call
+                .get("function")
+                .and_then(|f| f.get("arguments"))
+                .and_then(|a| a.as_str())
+            {
+                accumulated_tool_calls[idx]
+                    .function
+                    .arguments
+                    .push_str(func_args);
+            }
+        } else if let Ok(tc) = serde_json::from_value::<LlamaToolCall>(tool_call.clone()) {
+            accumulated_tool_calls.push(tc);
+        }
+    } else if let Ok(tc) = serde_json::from_value::<LlamaToolCall>(tool_call.clone()) {
+        accumulated_tool_calls.push(tc);
     }
 }
 
@@ -370,4 +378,60 @@ struct UsageInfo {
     prompt_tokens: u32,
     completion_tokens: u32,
     total_tokens: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn appends_argument_only_deltas_by_index() {
+        let mut calls = Vec::<LlamaToolCall>::new();
+
+        let first = serde_json::json!({
+            "index": 0,
+            "id": "call_1",
+            "type": "function",
+            "function": {
+                "name": "search_items",
+                "arguments": "{"
+            }
+        });
+        let second = serde_json::json!({
+            "index": 0,
+            "function": {
+                "arguments": "\"query\": \"key\""
+            }
+        });
+        let third = serde_json::json!({
+            "index": 0,
+            "function": {
+                "arguments": "}"
+            }
+        });
+
+        accumulate_stream_tool_call(&mut calls, &first);
+        accumulate_stream_tool_call(&mut calls, &second);
+        accumulate_stream_tool_call(&mut calls, &third);
+
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].r#type, "function");
+        assert_eq!(calls[0].function.name, "search_items");
+        assert_eq!(calls[0].function.arguments, "{\"query\": \"key\"}");
+    }
+
+    #[test]
+    fn ignores_argument_delta_when_no_prior_index_entry() {
+        let mut calls = Vec::<LlamaToolCall>::new();
+        let delta_only = serde_json::json!({
+            "index": 0,
+            "function": {
+                "arguments": "orphan"
+            }
+        });
+
+        accumulate_stream_tool_call(&mut calls, &delta_only);
+        assert!(calls.is_empty());
+    }
 }

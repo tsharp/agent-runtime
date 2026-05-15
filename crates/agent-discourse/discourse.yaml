@@ -1,0 +1,10 @@
+llm:
+  base_url: "http://127.0.0.1:1234"
+  model: "llama-3.2-8x3b-moe-dark-champion-instruct-uncensored-abliterated-18.4b"
+
+discussion:
+  topic: "A dungeon crawl at the edge of a torchlit corridor"
+
+# Directory containing individual agent YAML files (one per agent).
+# Files are loaded in alphabetical order — use numeric prefixes to control turn order.
+agents_dir: "./agents"
