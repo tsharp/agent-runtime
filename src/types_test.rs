@@ -1,9 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use crate::step::{StepInputMetadata, StepOutputMetadata};
     use crate::types::*;
-    use crate::{StepError, StepInput, StepOutput, StepType};
     use serde_json::json;
+
+    #[cfg(feature = "workflow")]
+    use crate::step::{StepInputMetadata, StepOutputMetadata};
+    #[cfg(feature = "workflow")]
+    use crate::{StepError, StepInput, StepOutput, StepType};
 
     #[test]
     fn test_agent_input_creation() {
@@ -51,6 +54,7 @@ mod tests {
         assert_eq!(error.to_string(), "Execution failed: Execution failed");
     }
 
+    #[cfg(feature = "workflow")]
     #[test]
     fn test_step_input_creation() {
         let input = StepInput {
@@ -68,6 +72,7 @@ mod tests {
         assert_eq!(input.metadata.workflow_id, "wf_123");
     }
 
+    #[cfg(feature = "workflow")]
     #[test]
     fn test_step_output_creation() {
         let output = StepOutput {
@@ -84,6 +89,7 @@ mod tests {
         assert_eq!(output.metadata.execution_time_ms, 500);
     }
 
+    #[cfg(feature = "workflow")]
     #[test]
     fn test_step_type_serialization() {
         let step_type = StepType::Agent;
@@ -99,6 +105,7 @@ mod tests {
         assert_eq!(json, "\"conditional\"");
     }
 
+    #[cfg(feature = "workflow")]
     #[test]
     fn test_step_error_conversion() {
         let error = StepError::AgentError("Agent failed".to_string());

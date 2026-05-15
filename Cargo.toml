@@ -30,8 +30,16 @@ repository = "https://github.com/tsharp/agent-runtime"
 keywords = ["agent", "ai", "llm", "tools", "protocol"]
 categories = ["development-tools", "network-programming"]
 readme = "README.md"
+autotests = false
 
 [features]
+default = []
+# Enables the workflow runtime: `Workflow`, `WorkflowBuilder`, `Runtime`,
+# `WorkflowContext`, `ContextManager` strategies, and all built-in `Step`
+# implementations (`AgentStep`, `TransformStep`, `ConditionalStep`,
+# `SubWorkflowStep`). Off by default — enable when you want to compose
+# agents into multi-step pipelines.
+workflow = []
 
 [dependencies]
 # Core
@@ -67,6 +75,43 @@ criterion = { version = "0.5", features = ["async_tokio", "html_reports"] }
 [[bench]]
 name = "agent_benchmarks"
 harness = false
+
+# --- Integration tests --------------------------------------------------
+# Tests that exercise only Agent/LLM/Tools/Events build in the default
+# feature set.
+[[test]]
+name = "chat_history_tests"
+path = "tests/chat_history_tests.rs"
+
+[[test]]
+name = "error_tests"
+path = "tests/error_tests.rs"
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration_tests.rs"
+
+# Tests below construct `Workflow`/`Runtime` directly and therefore only
+# compile when the `workflow` feature is enabled.
+[[test]]
+name = "checkpoint_tests"
+path = "tests/checkpoint_tests.rs"
+required-features = ["workflow"]
+
+[[test]]
+name = "load_tests"
+path = "tests/load_tests.rs"
+required-features = ["workflow"]
+
+[[test]]
+name = "subworkflow_context_tests"
+path = "tests/subworkflow_context_tests.rs"
+required-features = ["workflow"]
+
+[[test]]
+name = "workflow_context_tests"
+path = "tests/workflow_context_tests.rs"
+required-features = ["workflow"]
 
 [lib]
 name = "agent_runtime"
