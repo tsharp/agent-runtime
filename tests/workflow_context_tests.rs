@@ -16,17 +16,17 @@ async fn test_workflow_with_chat_history() {
     let agent1_config = AgentConfig::builder("agent1")
         .system_prompt("You are agent 1")
         .build();
-    let agent1 = Agent::new(agent1_config).with_llm_client(mock_llm.clone());
+    let agent1 = Agent::new(agent1_config).with_client(mock_llm.clone());
 
     let agent2_config = AgentConfig::builder("agent2")
         .system_prompt("You are agent 2")
         .build();
-    let agent2 = Agent::new(agent2_config).with_llm_client(mock_llm.clone());
+    let agent2 = Agent::new(agent2_config).with_client(mock_llm.clone());
 
     let agent3_config = AgentConfig::builder("agent3")
         .system_prompt("You are agent 3")
         .build();
-    let agent3 = Agent::new(agent3_config).with_llm_client(mock_llm.clone());
+    let agent3 = Agent::new(agent3_config).with_client(mock_llm.clone());
 
     // Create workflow with token budget manager
     let context_manager = Arc::new(TokenBudgetManager::new(24_000, 3.0));
@@ -96,7 +96,7 @@ async fn test_workflow_without_chat_history() {
     let agent_config = AgentConfig::builder("agent")
         .system_prompt("You are a test agent")
         .build();
-    let agent = Agent::new(agent_config).with_llm_client(mock_llm);
+    let agent = Agent::new(agent_config).with_client(mock_llm);
 
     // Create workflow WITHOUT chat history management (legacy mode)
     let workflow = Workflow::builder()
@@ -173,7 +173,7 @@ async fn test_sliding_window_manager() {
         let config = AgentConfig::builder(format!("agent{}", i))
             .system_prompt(format!("Agent {}", i))
             .build();
-        let agent = Agent::new(config).with_llm_client(mock_llm.clone());
+        let agent = Agent::new(config).with_client(mock_llm.clone());
         builder = builder.add_step(Box::new(AgentStep::from_agent(
             agent,
             format!("agent{}", i),

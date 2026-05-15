@@ -670,7 +670,7 @@ impl EventStream {
     }
 
     /// Get events from a specific offset (for replay)
-    pub fn from_offset(&self, offset: EventOffset) -> Vec<Event> {
+    pub fn get_from_offset(&self, offset: EventOffset) -> Vec<Event> {
         let history = self.history.read().unwrap();
         history
             .iter()

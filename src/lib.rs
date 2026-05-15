@@ -35,7 +35,7 @@ pub use error::{
     ToolError, ToolErrorCode, WorkflowError, WorkflowErrorCode,
 };
 pub use event::{ComponentStatus, Event, EventScope, EventStream, EventType};
-pub use llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};
+pub use llm::{ChatMessage, ChatRequest, ChatResponse, LlmClient, Role};
 pub use logging::FileLogger;
 pub use retry::RetryPolicy;
 pub use runtime::Runtime;
@@ -52,7 +52,7 @@ pub use workflow::{Workflow, WorkflowBuilder, WorkflowState};
 pub mod prelude {
     pub use crate::agent::{Agent, AgentConfig};
     pub use crate::event::{ComponentStatus, Event, EventScope, EventStream, EventType};
-    pub use crate::llm::{ChatClient, ChatMessage, ChatRequest, ChatResponse, Role};
+    pub use crate::llm::{ChatMessage, ChatRequest, ChatResponse, LlmClient, Role};
     pub use crate::step_impls::{AgentStep, ConditionalStep, SubWorkflowStep, TransformStep};
     pub use crate::tool::{NativeTool, Tool, ToolRegistry};
     pub use crate::types::{

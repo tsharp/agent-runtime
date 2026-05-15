@@ -5,9 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::mpsc;
 
-use crate::llm::GenericChatClient;
-
-use super::super::{ChatClient, ChatRequest, ChatResponse, LlmError, LlmResult};
+use crate::llm::{ChatRequest, ChatResponse, GenericChatClient, LlmError, LlmResult};
 
 /// Llama.cpp server client (local or remote)
 ///

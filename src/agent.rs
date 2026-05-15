@@ -1,6 +1,6 @@
 use crate::event::EventStream;
 use crate::llm::types::ToolCall;
-use crate::llm::{ChatClient, ChatMessage, ChatRequest};
+use crate::llm::{ChatMessage, ChatRequest, LlmClient};
 use crate::tool::ToolRegistry;
 use crate::tool_loop_detection::{ToolCallTracker, ToolLoopDetectionConfig};
 use crate::types::{AgentError, AgentInput, AgentOutput, AgentOutputMetadata, AgentResult};
@@ -121,7 +121,7 @@ impl AgentConfigBuilder {
 /// Agent execution unit
 pub struct Agent {
     config: AgentConfig,
-    llm_client: Option<Arc<ChatClient>>,
+    llm_client: Option<LlmClient>,
 }
 
 impl Agent {
@@ -132,7 +132,7 @@ impl Agent {
         }
     }
 
-    pub fn with_client(mut self, client: Arc<ChatClient>) -> Self {
+    pub fn with_client(mut self, client: LlmClient) -> Self {
         self.llm_client = Some(client);
         self
     }

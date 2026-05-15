@@ -174,7 +174,7 @@ impl Runtime {
 
     /// Get events from a specific offset (for replay)
     pub fn events_from_offset(&self, offset: u64) -> Vec<Event> {
-        self.event_stream.from_offset(offset)
+        self.event_stream.get_from_offset(offset)
     }
 }
 

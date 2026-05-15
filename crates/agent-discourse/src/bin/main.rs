@@ -143,7 +143,7 @@ impl Moderator {
                         .strip_think_blocks(false)
                         .build(),
                 )
-                .with_llm_client(client.clone()),
+                .with_client(client.clone()),
                 left: false,
             })
             .collect();

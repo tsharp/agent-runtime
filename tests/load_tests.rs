@@ -22,7 +22,7 @@ async fn test_concurrent_agents_10() {
                 .system_prompt("Test agent")
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
             let input = AgentInput::from_text(format!("Input {}", i));
             agent.execute(&input).await
@@ -52,7 +52,7 @@ async fn test_concurrent_agents_50() {
                 .system_prompt("Test")
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
             let input = AgentInput::from_text("test");
             agent.execute(&input).await
@@ -83,7 +83,7 @@ async fn test_concurrent_agents_100() {
                 .system_prompt("Test")
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
             let input = AgentInput::from_text("test");
             agent.execute(&input).await
@@ -267,7 +267,7 @@ async fn test_agent_with_many_tool_calls() {
         .max_tool_iterations(100) // Allow many iterations
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -293,12 +293,12 @@ async fn test_concurrent_workflows() {
             let agent1_config = AgentConfig::builder(format!("agent1_{}", i))
                 .system_prompt("First agent")
                 .build();
-            let agent1 = Agent::new(agent1_config).with_llm_client(mock_client.clone());
+            let agent1 = Agent::new(agent1_config).with_client(mock_client.clone());
 
             let agent2_config = AgentConfig::builder(format!("agent2_{}", i))
                 .system_prompt("Second agent")
                 .build();
-            let agent2 = Agent::new(agent2_config).with_llm_client(mock_client);
+            let agent2 = Agent::new(agent2_config).with_client(mock_client);
 
             let workflow = WorkflowBuilder::new()
                 .name(format!("workflow_{}", i))
@@ -337,7 +337,7 @@ async fn test_memory_usage_many_agents() {
         let config = AgentConfig::builder(format!("agent_{}", i))
             .system_prompt("Test")
             .build();
-        let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+        let agent = Agent::new(config).with_client(Arc::new(mock_client));
         agents.push(agent);
     }
 
@@ -420,7 +420,7 @@ async fn test_concurrent_agent_with_tools() {
                 .tools(Arc::new(registry))
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
             let input = AgentInput::from_text("test");
             agent.execute(&input).await
         });
@@ -462,7 +462,7 @@ async fn test_stress_tool_loop_detection() {
                 .tool_loop_detection(agent_runtime::ToolLoopDetectionConfig::default())
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
             let input = AgentInput::from_text("test");
             agent.execute(&input).await
         });

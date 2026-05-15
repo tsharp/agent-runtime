@@ -15,7 +15,7 @@ async fn test_llm_error_handling() {
         .system_prompt("Test")
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -48,7 +48,7 @@ async fn test_tool_execution_failure() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     // Agent should handle tool failure gracefully
@@ -99,7 +99,7 @@ async fn test_tool_invalid_arguments() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -145,7 +145,7 @@ async fn test_tool_timeout() {
         .max_tool_iterations(10)
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -179,7 +179,7 @@ async fn test_max_iterations_exceeded() {
         .max_tool_iterations(5) // Set low limit
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -213,7 +213,7 @@ async fn test_tool_returns_error_status() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -235,7 +235,7 @@ async fn test_tool_not_found() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -266,7 +266,7 @@ async fn test_malformed_tool_call_arguments() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -282,7 +282,7 @@ async fn test_empty_tool_calls_array() {
         .system_prompt("Test")
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -320,7 +320,7 @@ async fn test_concurrent_tool_failures() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -353,7 +353,7 @@ async fn test_tool_panic_recovery() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;
@@ -371,7 +371,7 @@ async fn test_network_retry_simulation() {
         .system_prompt("Test")
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     // First call should fail
@@ -414,7 +414,7 @@ async fn test_no_data_tool_result() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
     let input = AgentInput::from_text("test");
 
     let result = agent.execute(&input).await;

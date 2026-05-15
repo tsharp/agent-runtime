@@ -50,27 +50,12 @@ pub trait GenericChatClient: Send + Sync {
     ) -> LlmResult<ChatResponse>;
 }
 
-pub struct ChatClient {
-    client: Arc<Box<dyn GenericChatClient>>,
-}
-
-impl ChatClient {
-    pub fn new(client: Arc<Box<dyn GenericChatClient>>) -> Self {
-        Self { client }
-    }
-}
-
-#[async_trait]
-impl GenericChatClient for ChatClient {
-    async fn chat(&self, request: ChatRequest) -> LlmResult<ChatResponse> {
-        self.client.chat(request).await
-    }
-
-    async fn chat_stream(
-        &self,
-        request: ChatRequest,
-        tx: mpsc::Sender<String>,
-    ) -> LlmResult<ChatResponse> {
-        self.client.chat_stream(request, tx).await
-    }
-}
+/// Type alias for Arc-wrapped LLM client trait objects
+/// Use this type when storing or passing LLM clients.
+///
+/// # Example
+/// ```rust,ignore
+/// let client: LlmClient = Arc::new(LlamaClient::new("http://localhost:8080", "llama"));
+/// let agent = Agent::new(config).with_client(client);
+/// ```
+pub type LlmClient = Arc<dyn GenericChatClient>;
