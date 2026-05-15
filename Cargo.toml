@@ -54,7 +54,7 @@ dashmap = "6.1.0"
 parking_lot = "0.12.5"
 futures = "0.3.32"
 chrono = { version = "0.4.44", features = ["serde"] }
-rand = "0.10.0"
+rand = "0.10.1"
 md5 = "0.7"
 papaya = "0.2.4"
 
