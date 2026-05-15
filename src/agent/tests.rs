@@ -1,4 +1,3 @@
-
 use crate::agent::{Agent, AgentConfig};
 use crate::types::{AgentInput, AgentInputMetadata};
 use serde_json::json;

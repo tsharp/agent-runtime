@@ -1,4 +1,3 @@
-
 use crate::event::{ComponentStatus, EventScope, EventStream, EventType};
 use serde_json::json;
 
