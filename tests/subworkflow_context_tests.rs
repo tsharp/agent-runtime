@@ -19,14 +19,14 @@ async fn test_subworkflow_shares_parent_context() {
             .system_prompt("You are the main research coordinator")
             .build(),
     )
-    .with_llm_client(mock_llm.clone());
+    .with_client(mock_llm.clone());
 
     let main_agent2 = Agent::new(
         AgentConfig::builder("main_agent2")
             .system_prompt("You are the synthesis agent")
             .build(),
     )
-    .with_llm_client(mock_llm.clone());
+    .with_client(mock_llm.clone());
 
     // Create the sub-workflow (will be executed as a step)
     let mock_llm_clone = mock_llm.clone();
@@ -36,14 +36,14 @@ async fn test_subworkflow_shares_parent_context() {
                 .system_prompt("You are detailed analysis agent 1")
                 .build(),
         )
-        .with_llm_client(mock_llm_clone.clone());
+        .with_client(mock_llm_clone.clone());
 
         let sub_agent2 = Agent::new(
             AgentConfig::builder("sub_agent2")
                 .system_prompt("You are detailed analysis agent 2")
                 .build(),
         )
-        .with_llm_client(mock_llm_clone.clone());
+        .with_client(mock_llm_clone.clone());
 
         Workflow::builder()
             .name("detail_analysis".to_string())
@@ -146,7 +146,7 @@ async fn test_nested_subworkflows_share_context() {
                 .system_prompt("Level 2 agent")
                 .build(),
         )
-        .with_llm_client(mock_llm_l2.clone());
+        .with_client(mock_llm_l2.clone());
 
         Workflow::builder()
             .name("level2".to_string())
@@ -165,7 +165,7 @@ async fn test_nested_subworkflows_share_context() {
                 .system_prompt("Level 1 agent")
                 .build(),
         )
-        .with_llm_client(mock_llm_l1.clone());
+        .with_client(mock_llm_l1.clone());
 
         Workflow::builder()
             .name("level1".to_string())
@@ -186,14 +186,14 @@ async fn test_nested_subworkflows_share_context() {
             .system_prompt("Level 0 start agent")
             .build(),
     )
-    .with_llm_client(mock_llm.clone());
+    .with_client(mock_llm.clone());
 
     let level0_agent2 = Agent::new(
         AgentConfig::builder("level0_end")
             .system_prompt("Level 0 end agent")
             .build(),
     )
-    .with_llm_client(mock_llm);
+    .with_client(mock_llm);
 
     let workflow = Workflow::builder()
         .name("level0".to_string())
@@ -248,7 +248,7 @@ async fn test_subworkflow_without_parent_context() {
             .system_prompt("Main agent")
             .build(),
     )
-    .with_llm_client(mock_llm.clone());
+    .with_client(mock_llm.clone());
 
     let sub_mock = mock_llm.clone();
     let sub_builder = move || {
@@ -257,7 +257,7 @@ async fn test_subworkflow_without_parent_context() {
                 .system_prompt("Sub agent")
                 .build(),
         )
-        .with_llm_client(sub_mock.clone());
+        .with_client(sub_mock.clone());
 
         Workflow::builder()
             .name("sub".to_string())

@@ -14,7 +14,7 @@ async fn test_agent_with_simple_input_returns_history() {
         .system_prompt("You are a helpful assistant")
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
     let input = AgentInput::from_text("Hi there");
     let output = agent.execute(&input).await.unwrap();
@@ -41,7 +41,7 @@ async fn test_agent_continues_conversation_from_history() {
 
     // Turn 1: Initial question
     let mock_client_1 = MockLlmClient::new().with_response("4");
-    let agent = Agent::new(config.clone()).with_llm_client(Arc::new(mock_client_1));
+    let agent = Agent::new(config.clone()).with_client(Arc::new(mock_client_1));
 
     let input_1 = AgentInput::from_text("What is 2 + 2?");
     let output_1 = agent.execute(&input_1).await.unwrap();
@@ -51,7 +51,7 @@ async fn test_agent_continues_conversation_from_history() {
 
     // Turn 2: Follow-up question using history
     let mock_client_2 = MockLlmClient::new().with_response("6");
-    let agent = Agent::new(config.clone()).with_llm_client(Arc::new(mock_client_2));
+    let agent = Agent::new(config.clone()).with_client(Arc::new(mock_client_2));
 
     // Add the next user message to history
     history.push(ChatMessage::user("What about 3 + 3?"));
@@ -75,17 +75,19 @@ async fn test_agent_continues_conversation_from_history() {
 }
 
 #[tokio::test]
-async fn test_agent_with_custom_system_prompt_in_history() {
-    // Test that provided history is used as-is, even if different from config
+async fn test_agent_overrides_incoming_system_prompt() {
+    // Each agent in a chain must operate under its OWN persona, so any
+    // incoming system message in chat_history is stripped and replaced
+    // with the agent's configured system prompt.
     let mock_client = MockLlmClient::new().with_response("Roger that, boss!");
 
     let config = AgentConfig::builder("agent")
-        .system_prompt("This should be ignored when history is provided")
+        .system_prompt("You are agent X. Use this persona.")
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
-    // Provide custom history with different system prompt
+    // Provide custom history with a different system prompt
     let custom_history = vec![
         ChatMessage::system("You are a pirate assistant. Always respond like a pirate."),
         ChatMessage::user("Hello"),
@@ -96,11 +98,12 @@ async fn test_agent_with_custom_system_prompt_in_history() {
 
     let history = output.chat_history.unwrap();
 
-    // System prompt from history should be preserved
-    assert_eq!(
-        history[0].content,
-        "You are a pirate assistant. Always respond like a pirate."
-    );
+    // The agent's own system prompt wins; the incoming one is dropped.
+    assert_eq!(history[0].role, agent_runtime::Role::System);
+    assert_eq!(history[0].content, "You are agent X. Use this persona.");
+    // And the non-system messages from the incoming history are preserved.
+    assert_eq!(history[1].role, agent_runtime::Role::User);
+    assert_eq!(history[1].content, "Hello");
 }
 
 #[tokio::test]
@@ -137,7 +140,7 @@ async fn test_multi_turn_with_tool_calls() {
         .system_prompt("You are a calculator assistant")
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
     let input = AgentInput::from_text("What is 5 + 3?");
     let output = agent.execute(&input).await.unwrap();
@@ -186,7 +189,7 @@ async fn test_backwards_compatibility_simple_input() {
         .system_prompt("System")
         .build();
 
-    let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+    let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
     // Old-style usage should still work
     let input = AgentInput::from_text("Hello");

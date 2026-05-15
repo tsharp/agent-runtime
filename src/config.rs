@@ -1,6 +1,6 @@
 use crate::error::{ConfigError, ConfigErrorCode};
-use crate::retry::RetryPolicy;
-use crate::timeout::TimeoutConfig;
+use crate::runtime::retry::RetryPolicy;
+use crate::runtime::timeout::TimeoutConfig;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;

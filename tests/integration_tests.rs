@@ -116,7 +116,7 @@ async fn test_agent_with_tool_execution() {
         .tools(Arc::new(registry))
         .build();
 
-    let agent = Agent::new(config).with_llm_client(mock_llm.clone());
+    let agent = Agent::new(config).with_client(mock_llm.clone());
 
     // Execute
     let input = AgentInput::from_text("What is 42 + 137?");
@@ -144,7 +144,7 @@ async fn test_agent_tool_loop_detection() {
         .tools(Arc::new(registry))
         .build(); // Loop detection enabled by default
 
-    let agent = Agent::new(config).with_llm_client(mock_llm.clone());
+    let agent = Agent::new(config).with_client(mock_llm.clone());
 
     let input = AgentInput::from_text("Search for nonexistent");
     let _output = agent.execute(&input).await.unwrap();
@@ -174,7 +174,7 @@ async fn test_error_handling_network_failure() {
             .system_prompt("Test agent")
             .build(),
     )
-    .with_llm_client(mock_llm);
+    .with_client(mock_llm);
 
     let input = AgentInput::from_text("Test");
     let result = agent.execute(&input).await;

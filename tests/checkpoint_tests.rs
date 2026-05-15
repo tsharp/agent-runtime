@@ -14,7 +14,7 @@ async fn test_checkpoint_and_restore_context() {
     let agent1_config = AgentConfig::builder("agent1")
         .system_prompt("You are agent 1")
         .build();
-    let agent1 = Agent::new(agent1_config).with_llm_client(mock_llm.clone());
+    let agent1 = Agent::new(agent1_config).with_client(mock_llm.clone());
 
     let context_manager = Arc::new(TokenBudgetManager::new(24_000, 3.0));
 
@@ -60,7 +60,7 @@ async fn test_checkpoint_and_restore_context() {
     let agent2_config = AgentConfig::builder("agent2")
         .system_prompt("You are agent 2")
         .build();
-    let agent2 = Agent::new(agent2_config).with_llm_client(mock_llm);
+    let agent2 = Agent::new(agent2_config).with_client(mock_llm);
 
     let restored_workflow = Workflow::builder()
         .name("checkpoint_test_restored".to_string())
@@ -114,7 +114,7 @@ async fn test_external_checkpoint_workflow() {
                     .system_prompt("Agent 1")
                     .build(),
             )
-            .with_llm_client(mock_llm.clone()),
+            .with_client(mock_llm.clone()),
             "agent1".to_string(),
         )))
         .initial_input(json!("Start"))
@@ -147,7 +147,7 @@ async fn test_external_checkpoint_workflow() {
                     .system_prompt("Agent 2")
                     .build(),
             )
-            .with_llm_client(mock_llm.clone()),
+            .with_client(mock_llm.clone()),
             "agent2".to_string(),
         )))
         .add_step(Box::new(AgentStep::from_agent(
@@ -156,7 +156,7 @@ async fn test_external_checkpoint_workflow() {
                     .system_prompt("Agent 3")
                     .build(),
             )
-            .with_llm_client(mock_llm),
+            .with_client(mock_llm),
             "agent3".to_string(),
         )))
         .initial_input(json!("Continue from checkpoint"))
@@ -249,7 +249,7 @@ async fn test_restore_workflow_without_context_manager() {
         .with_restored_context(initial_context)
         .add_step(Box::new(AgentStep::from_agent(
             Agent::new(AgentConfig::builder("agent").system_prompt("Agent").build())
-                .with_llm_client(mock_llm),
+                .with_client(mock_llm),
             "agent".to_string(),
         )))
         .initial_input(json!("Continue"))

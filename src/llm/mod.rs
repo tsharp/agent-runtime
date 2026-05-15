@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
@@ -36,7 +38,7 @@ pub enum LlmError {
 
 /// Generic trait for LLM chat clients
 #[async_trait]
-pub trait ChatClient: Send + Sync {
+pub trait GenericChatClient: Send + Sync {
     /// Send a chat completion request
     async fn chat(&self, request: ChatRequest) -> LlmResult<ChatResponse>;
 
@@ -47,3 +49,13 @@ pub trait ChatClient: Send + Sync {
         tx: mpsc::Sender<String>,
     ) -> LlmResult<ChatResponse>;
 }
+
+/// Type alias for Arc-wrapped LLM client trait objects
+/// Use this type when storing or passing LLM clients.
+///
+/// # Example
+/// ```rust,ignore
+/// let client: LlmClient = Arc::new(LlamaClient::new("http://localhost:8080", "llama"));
+/// let agent = Agent::new(config).with_client(client);
+/// ```
+pub type LlmClient = Arc<dyn GenericChatClient>;

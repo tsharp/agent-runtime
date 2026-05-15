@@ -15,7 +15,7 @@ The `EventStream` has two subscription modes:
 let mut rx = runtime.event_stream().subscribe();
 
 // Mode 2: Historical replay (get events from specific offset)
-let missed_events = runtime.event_stream().from_offset(last_offset);
+let missed_events = runtime.event_stream().get_from_offset(last_offset);
 ```
 
 ### Architecture
@@ -32,7 +32,7 @@ pub struct EventStream {
 - ✅ EventStream stores **ALL events** in memory (history)
 - ✅ Each event gets a **sequential offset** (0, 1, 2, ...)
 - ✅ `subscribe()` gives you **future events** from now
-- ✅ `from_offset(N)` gives you **historical events** from offset N onwards
+- ✅ `get_from_offset(N)` gives you **historical events** from offset N onwards
 
 ### Reconnection Pattern (Zero Event Loss)
 
@@ -46,7 +46,7 @@ struct WebSocketClient {
 impl WebSocketClient {
     async fn reconnect(&mut self, runtime: &Runtime) {
         // Step 1: Get all missed events since disconnection
-        let missed = runtime.event_stream().from_offset(self.last_offset + 1);
+        let missed = runtime.event_stream().get_from_offset(self.last_offset + 1);
         
         for event in missed {
             self.last_offset = event.offset;
@@ -96,7 +96,7 @@ async fn handle_socket(
 ) {
     // If reconnecting, send missed events first
     if let Some(offset) = last_offset {
-        let missed_events = runtime.event_stream().from_offset(offset + 1);
+        let missed_events = runtime.event_stream().get_from_offset(offset + 1);
         
         for event in missed_events {
             let json = serde_json::to_string(&event).unwrap();
@@ -164,7 +164,7 @@ The in-memory history grows with event count. For long-running services:
 ```rust
 // Option 1: Persist to database and clear old events
 async fn archive_old_events(stream: &EventStream) {
-    let events = stream.from_offset(0);
+    let events = stream.get_from_offset(0);
     database.insert_batch(events).await;
     // (Note: EventStream doesn't have clear() method - would need to be added)
 }
@@ -183,7 +183,7 @@ For UIs that don't need full history:
 let five_mins_ago = Utc::now() - Duration::minutes(5);
 let recent_events: Vec<Event> = runtime
     .event_stream()
-    .from_offset(0)
+    .get_from_offset(0)
     .into_iter()
     .filter(|e| e.timestamp > five_mins_ago)
     .collect();

@@ -48,9 +48,11 @@ impl Config {
         let path = std::env::var("DISCOURSE_CONFIG")
             .unwrap_or_else(|_| format!("{}/discourse.yaml", env!("CARGO_MANIFEST_DIR")));
 
-        let mut cfg: Config = serde_yaml::from_str(&std::fs::read_to_string(&path)
-            .map_err(|e| format!("Failed to read '{}': {}", path, e))?)
-            .map_err(|e| format!("Failed to parse '{}': {}", path, e))?;
+        let mut cfg: Config = serde_yaml::from_str(
+            &std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read '{}': {}", path, e))?,
+        )
+        .map_err(|e| format!("Failed to parse '{}': {}", path, e))?;
 
         let agents_dir = std::path::Path::new(&path)
             .parent()
@@ -60,7 +62,12 @@ impl Config {
         let mut paths: Vec<_> = std::fs::read_dir(&agents_dir)
             .map_err(|e| format!("Cannot read agents dir '{}': {}", agents_dir.display(), e))?
             .filter_map(|e| e.ok())
-            .filter(|e| matches!(e.path().extension().and_then(|s| s.to_str()), Some("yaml" | "yml")))
+            .filter(|e| {
+                matches!(
+                    e.path().extension().and_then(|s| s.to_str()),
+                    Some("yaml" | "yml")
+                )
+            })
             .map(|e| e.path())
             .collect();
         paths.sort();
@@ -68,9 +75,11 @@ impl Config {
         cfg.agents = paths
             .iter()
             .map(|p| {
-                serde_yaml::from_str(&std::fs::read_to_string(p)
-                    .map_err(|e| format!("Failed to read '{}': {}", p.display(), e))?)
-                    .map_err(|e| format!("Failed to parse '{}': {}", p.display(), e).into())
+                serde_yaml::from_str(
+                    &std::fs::read_to_string(p)
+                        .map_err(|e| format!("Failed to read '{}': {}", p.display(), e))?,
+                )
+                .map_err(|e| format!("Failed to parse '{}': {}", p.display(), e).into())
             })
             .collect::<Result<Vec<AgentDef>, Box<dyn std::error::Error>>>()?;
 
@@ -102,7 +111,13 @@ fn parse_action(response: &str) -> Action {
     } else if response.starts_with("[PASS]") || response.len() < 20 {
         Action::Pass
     } else {
-        Action::Respond(response.strip_prefix("[RESPOND]").unwrap_or(response).trim().to_string())
+        Action::Respond(
+            response
+                .strip_prefix("[RESPOND]")
+                .unwrap_or(response)
+                .trim()
+                .to_string(),
+        )
     }
 }
 
@@ -128,7 +143,7 @@ impl Moderator {
                         .strip_think_blocks(false)
                         .build(),
                 )
-                .with_llm_client(client.clone()),
+                .with_client(client.clone()),
                 left: false,
             })
             .collect();
@@ -164,7 +179,11 @@ impl Moderator {
         self.agents.iter().filter(|actor| !actor.left).count()
     }
 
-    async fn run_turn(&mut self, round: usize, intent: &str) -> Result<(), Box<dyn std::error::Error>> {
+    async fn run_turn(
+        &mut self,
+        round: usize,
+        intent: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut order: Vec<usize> = self
             .agents
             .iter()
@@ -218,14 +237,21 @@ impl Moderator {
                     println!("     ✦ {} leaves the scene", actor.name);
                     actor.left = true;
                     left += 1;
-                    self.history
-                        .push(ChatMessage::user(format!("[{} leaves the scene]", actor.name)));
+                    self.history.push(ChatMessage::user(format!(
+                        "[{} leaves the scene]",
+                        actor.name
+                    )));
                 }
             }
         }
 
         self.agents.retain(|actor| !actor.left);
-        println!("\n  ─ {} spoke, {} left, {} remain", spoke, left, self.active_count());
+        println!(
+            "\n  ─ {} spoke, {} left, {} remain",
+            spoke,
+            left,
+            self.active_count()
+        );
         Ok(())
     }
 
@@ -261,7 +287,11 @@ impl Moderator {
         println!("  FINAL DISCUSSION SUMMARY");
         println!("{}", "═".repeat(70));
 
-        for message in self.history.iter().filter(|message| message.role == Role::User) {
+        for message in self
+            .history
+            .iter()
+            .filter(|message| message.role == Role::User)
+        {
             println!("{}", message.content);
         }
     }

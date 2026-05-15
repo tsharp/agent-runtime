@@ -16,7 +16,7 @@ fn bench_agent_execution_no_tools(c: &mut Criterion) {
                 .system_prompt("You are a test agent")
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
             let input = AgentInput::from_text("test input");
 
@@ -66,7 +66,7 @@ fn bench_agent_with_single_tool(c: &mut Criterion) {
                 .tools(Arc::new(registry))
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
             let input = AgentInput::from_text("What is 5 + 3?");
 
@@ -133,7 +133,7 @@ fn bench_agent_with_multiple_tools(c: &mut Criterion) {
                 .tools(Arc::new(registry))
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
             let input = AgentInput::from_text("Calculate (5 + 3) * 2 - 4");
 
@@ -225,7 +225,7 @@ fn bench_concurrent_agents(c: &mut Criterion) {
                                 .system_prompt("Test agent")
                                 .build();
 
-                            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+                            let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
                             let input = AgentInput::from_text("test");
                             agent.execute(&input).await.unwrap()
@@ -267,7 +267,7 @@ fn bench_tool_loop_detection(c: &mut Criterion) {
                 .tools(Arc::new(registry))
                 .build();
 
-            let agent = Agent::new(config).with_llm_client(Arc::new(mock_client));
+            let agent = Agent::new(config).with_client(Arc::new(mock_client));
 
             let input = AgentInput::from_text("test");
             black_box(agent.execute(&input).await.ok())

@@ -82,10 +82,7 @@ impl Actor {
 
         // Goals
         if !self.goals.primary.is_empty() {
-            parts.push(format!(
-                "Primary goals: {}.",
-                self.goals.primary.join(", ")
-            ));
+            parts.push(format!("Primary goals: {}.", self.goals.primary.join(", ")));
         }
         if !self.goals.secondary.is_empty() {
             parts.push(format!(
@@ -141,10 +138,7 @@ impl Actor {
 
         // Capabilities
         if !self.capabilities.skills.is_empty() {
-            parts.push(format!(
-                "Skills: {}.",
-                self.capabilities.skills.join(", ")
-            ));
+            parts.push(format!("Skills: {}.", self.capabilities.skills.join(", ")));
         }
 
         parts.join("\n")
@@ -357,7 +351,10 @@ actor:
     #[test]
     fn parses_goals() {
         let goals = mira().goals;
-        assert_eq!(goals.primary, vec!["keep the party alive", "avoid ambushes"]);
+        assert_eq!(
+            goals.primary,
+            vec!["keep the party alive", "avoid ambushes"]
+        );
         assert_eq!(goals.secondary, vec!["gain the player's trust"]);
     }
 
@@ -374,14 +371,19 @@ actor:
     fn parses_activation() {
         let act = mira().activation;
         assert!(act.speak_when.contains(&"danger_detected".to_string()));
-        assert!(act.remain_silent_when.contains(&"situation_is_stable".to_string()));
+        assert!(act
+            .remain_silent_when
+            .contains(&"situation_is_stable".to_string()));
     }
 
     #[test]
     fn parses_knowledge() {
         let k = mira().knowledge;
         assert_eq!(k.public, vec!["the chapel appears abandoned"]);
-        assert_eq!(k.private, vec!["the dust near the altar was recently disturbed"]);
+        assert_eq!(
+            k.private,
+            vec!["the dust near the altar was recently disturbed"]
+        );
     }
 
     #[test]
@@ -411,14 +413,23 @@ actor:
     #[test]
     fn system_prompt_contains_name_and_world() {
         let prompt = mira().to_system_prompt();
-        assert!(prompt.contains("Mira Voss"), "prompt missing name:\n{prompt}");
-        assert!(prompt.contains("dark fantasy"), "prompt missing world:\n{prompt}");
+        assert!(
+            prompt.contains("Mira Voss"),
+            "prompt missing name:\n{prompt}"
+        );
+        assert!(
+            prompt.contains("dark fantasy"),
+            "prompt missing world:\n{prompt}"
+        );
     }
 
     #[test]
     fn system_prompt_contains_scene_and_mood() {
         let prompt = mira().to_system_prompt();
-        assert!(prompt.contains("ruined chapel"), "prompt missing scene:\n{prompt}");
+        assert!(
+            prompt.contains("ruined chapel"),
+            "prompt missing scene:\n{prompt}"
+        );
         assert!(prompt.contains("tense"), "prompt missing mood:\n{prompt}");
     }
 
@@ -426,14 +437,23 @@ actor:
     fn system_prompt_contains_voice() {
         let prompt = mira().to_system_prompt();
         assert!(prompt.contains("wary"), "prompt missing tone:\n{prompt}");
-        assert!(prompt.contains("concise"), "prompt missing style:\n{prompt}");
+        assert!(
+            prompt.contains("concise"),
+            "prompt missing style:\n{prompt}"
+        );
     }
 
     #[test]
     fn system_prompt_contains_primary_goals() {
         let prompt = mira().to_system_prompt();
-        assert!(prompt.contains("keep the party alive"), "prompt missing primary goal:\n{prompt}");
-        assert!(prompt.contains("avoid ambushes"), "prompt missing primary goal:\n{prompt}");
+        assert!(
+            prompt.contains("keep the party alive"),
+            "prompt missing primary goal:\n{prompt}"
+        );
+        assert!(
+            prompt.contains("avoid ambushes"),
+            "prompt missing primary goal:\n{prompt}"
+        );
     }
 
     #[test]
@@ -448,14 +468,23 @@ actor:
     #[test]
     fn system_prompt_contains_skills() {
         let prompt = mira().to_system_prompt();
-        assert!(prompt.contains("stealth"), "prompt missing skills:\n{prompt}");
-        assert!(prompt.contains("tracking"), "prompt missing skills:\n{prompt}");
+        assert!(
+            prompt.contains("stealth"),
+            "prompt missing skills:\n{prompt}"
+        );
+        assert!(
+            prompt.contains("tracking"),
+            "prompt missing skills:\n{prompt}"
+        );
     }
 
     #[test]
     fn system_prompt_contains_activation_triggers() {
         let prompt = mira().to_system_prompt();
-        assert!(prompt.contains("danger_detected"), "prompt missing speak_when:\n{prompt}");
+        assert!(
+            prompt.contains("danger_detected"),
+            "prompt missing speak_when:\n{prompt}"
+        );
         assert!(
             prompt.contains("situation_is_stable"),
             "prompt missing remain_silent_when:\n{prompt}"
