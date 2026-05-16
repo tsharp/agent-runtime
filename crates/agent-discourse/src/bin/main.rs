@@ -48,7 +48,7 @@ impl Config {
         let path = std::env::var("DISCOURSE_CONFIG")
             .unwrap_or_else(|_| format!("{}/discourse.yaml", env!("CARGO_MANIFEST_DIR")));
 
-        let mut cfg: Config = serde_yaml::from_str(
+        let mut cfg: Config = yaml_serde::from_str(
             &std::fs::read_to_string(&path)
                 .map_err(|e| format!("Failed to read '{}': {}", path, e))?,
         )
@@ -75,7 +75,7 @@ impl Config {
         cfg.agents = paths
             .iter()
             .map(|p| {
-                serde_yaml::from_str(
+                yaml_serde::from_str(
                     &std::fs::read_to_string(p)
                         .map_err(|e| format!("Failed to read '{}': {}", p.display(), e))?,
                 )

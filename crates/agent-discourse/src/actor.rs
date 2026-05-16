@@ -11,8 +11,8 @@ pub struct ActorFile {
 }
 
 impl ActorFile {
-    pub fn from_yaml(src: &str) -> Result<Self, serde_yaml::Error> {
-        serde_yaml::from_str(src)
+    pub fn from_yaml(src: &str) -> Result<Self, yaml_serde::Error> {
+        yaml_serde::from_str(src)
     }
 }
 
