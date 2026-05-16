@@ -25,3 +25,4 @@ target
 
 # Workflow output files (logs, results, etc.)
 output/
+node_modules/
