@@ -55,7 +55,7 @@ impl RuntimeConfig {
             field: Some(path.display().to_string()),
         })?;
 
-        serde_yaml::from_str(&content).map_err(|e| ConfigError {
+        yaml_serde::from_str(&content).map_err(|e| ConfigError {
             code: ConfigErrorCode::ParseError,
             message: format!("Failed to parse YAML: {}", e),
             field: None,
@@ -435,7 +435,7 @@ mod tests {
     #[test]
     fn test_yaml_serialization() {
         let config = RuntimeConfig::default();
-        let yaml_str = serde_yaml::to_string(&config).unwrap();
+        let yaml_str = yaml_serde::to_string(&config).unwrap();
         assert!(yaml_str.contains("max_attempts"));
     }
 
@@ -451,7 +451,7 @@ logging:
   directory: logs
         "#;
 
-        let config: RuntimeConfig = serde_yaml::from_str(yaml_str).unwrap();
+        let config: RuntimeConfig = yaml_serde::from_str(yaml_str).unwrap();
         assert_eq!(config.retry.max_attempts, 5);
         assert_eq!(config.logging.level, "debug");
     }
