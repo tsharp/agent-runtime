@@ -1,4 +1,3 @@
-# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
 # This file contains fine-tuning settings that cannot be specified in cargo.toml (which only supports "error level").
