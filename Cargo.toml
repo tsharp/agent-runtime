@@ -21,7 +21,7 @@ all = "warn"
 
 [package]
 name = "agent-runtime"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["Travis Sharp <travis@kuipersys.com>"]
 license = "MIT OR Apache-2.0"

@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "agent-discourse"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "agent-runtime",
  "chrono",
@@ -17,7 +17,7 @@ dependencies = [
 
 [[package]]
 name = "agent-runtime"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "async-trait",
