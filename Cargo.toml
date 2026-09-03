@@ -1,11 +1,11 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
 "crates/agent-discourse",
 ]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["Travis Sharp <travis@kuipersys.com>"]
 license = "MIT OR Apache-2.0"
@@ -43,34 +43,40 @@ workflow = []
 
 [dependencies]
 # Core
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-tokio = { version = "1.52.3", features = ["full", "process"] }
-async-trait = "0.1.89"
-thiserror = "1.0.69"
-uuid = { version = "1.23.1", features = ["v4"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+tokio = { version = "1.53.1", features = ["full", "process"] }
+async-trait = "0.1.92"
+thiserror = "2.0.20"
+uuid = { version = "1.26.0", features = ["v4"] }
 inventory = "0.3.24"
-dashmap = "6.1.0"
+dashmap = "6.2.1"
 parking_lot = "0.12.5"
-futures = "0.3.32"
-chrono = { version = "0.4.44", features = ["serde"] }
-rand = "0.10.1"
-md5 = "0.7.0"
-papaya = "0.2.4"
+futures = "0.3.34"
+chrono = { version = "0.4.45", features = ["serde"] }
+rand = "0.10.2"
+md5 = "0.8.1"
+papaya = "0.2.5"
 
 # Configuration
-config = "0.14.1"
-toml = "0.8.23"
-yaml_serde  = "0.10.4"
+config = "0.15.25"
+toml = "0.9.8"
+yaml_serde  = "0.10.7"
 
 # MCP - Model Context Protocol
-rust-mcp-sdk = { version = "0.9.0", features = ["client"] }
+rust-mcp-sdk = { version = "1.1.0", features = ["client"] }
 
 # Optional - HTTP transport(client)
-reqwest = { version = "0.11.27", features = ["json", "stream"] }
+reqwest = { version = "0.13.4", features = ["json", "stream"] }
+
+# Transient
+crossbeam-epoch = { version = "0.9.20" }
+quinn-proto = { version = "0.11.15" }
+anyhow = { version = "1.0.104" }
+chacha20 = { version = "0.10.2" }
 
 [dev-dependencies]
-criterion = { version = "0.5.1", features = ["async_tokio", "html_reports"] }
+criterion = { version = "0.8.2", features = ["async_tokio", "html_reports"] }
 
 [[bench]]
 name = "agent_benchmarks"
